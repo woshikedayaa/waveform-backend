@@ -1,0 +1,15 @@
+server:
+  port: 8080
+  addr: 127.0.0.1
+log:
+  # 这里有几个导出方案
+  # stdout
+  # <path>
+  output:
+    - stdout
+    - /var/log/waveform/latest.log
+  # e.g. json console console_with_color
+  format: json
+  level: info
+device:
+  portName: "/dev/ttyUSB0"
