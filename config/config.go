@@ -39,15 +39,23 @@ func Get() *Config {
 }
 
 func InitConfig() error {
-	//
-	viper.SetConfigType("yaml")
-	if runtime.GOOS != "windows" {
-		viper.AddConfigPath("/usr/local/share/etc/waveform")
+	var (
+		configPath = ""
+		configName = "config.yaml"
+		configType = "yaml"
+	)
+
+	// 这样做是为了符合 FHS 规范
+	if runtime.GOOS == "windows" {
+		configPath, _ = os.Getwd()
 	} else {
-		cwd, _ := os.Getwd()
-		viper.AddConfigPath(cwd)
+		configPath = "/usr/local/share/etc/waveform"
 	}
-	viper.SetConfigFile("config.yaml")
+
+	//
+	viper.SetConfigType(configType)
+	viper.AddConfigPath(configPath)
+	viper.SetConfigFile(configName)
 
 	err := viper.ReadInConfig()
 	if err != nil {
