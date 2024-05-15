@@ -1,7 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"github.com/woshikedayaa/waveform-backend/config"
+)
 
 func main() {
-	fmt.Println("Hello World")
+	err := config.InitConfig()
+	if err != nil {
+		panic(err)
+	}
 }

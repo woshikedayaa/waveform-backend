@@ -34,7 +34,7 @@ type Device struct {
 
 var config *Config
 
-func Get() *Config {
+func G() *Config {
 	return config
 }
 
@@ -65,5 +65,7 @@ func InitConfig() error {
 	if err != nil {
 		return errors.New("config: " + err.Error())
 	}
+	// todo config检查
+
 	return nil
 }
