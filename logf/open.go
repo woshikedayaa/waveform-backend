@@ -11,7 +11,9 @@ var (
 )
 
 func Open(name string) *zap.Logger {
-	logger := zap.New(core, options...)
+	var logger *zap.Logger
+
+	logger = zap.New(core, options...)
 
 	return logger.Named(name)
 }
