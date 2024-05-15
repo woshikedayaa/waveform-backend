@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/spf13/viper"
 	"os"
+	"path/filepath"
 	"runtime"
 )
 
@@ -23,16 +24,17 @@ type Server struct {
 }
 
 type Log struct {
-	Output []string `json:"output" yaml:"output"`
-	Level  string   `json:"level" yaml:"level"`
-	Format string   `json:"format" yaml:"format"`
+	Output    []string `json:"output" yaml:"output"`
+	ErrOutput []string `json:"errOutput" yaml:"errOutput"`
+	Level     string   `json:"level" yaml:"level"`
+	Format    string   `json:"format" yaml:"format"`
 }
 
 type Device struct {
 	PortName string `json:"portName" yaml:"portName"`
 }
 
-var config *Config
+var config *Config = &Config{}
 
 func G() *Config {
 	return config
@@ -49,13 +51,13 @@ func InitConfig() error {
 	if runtime.GOOS == "windows" {
 		configPath, _ = os.Getwd()
 	} else {
-		configPath = "/usr/local/share/etc/waveform"
+		configPath = "/usr/local/share/etc/waveform/"
 	}
 
 	//
 	viper.SetConfigType(configType)
 	viper.AddConfigPath(configPath)
-	viper.SetConfigFile(configName)
+	viper.SetConfigFile(filepath.Join(configPath, configName))
 
 	err := viper.ReadInConfig()
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -18,6 +19,8 @@ type LoggerWrapper struct {
 
 func LoggerInit() error {
 	var (
+		err error
+
 		encoderConfig zapcore.EncoderConfig
 		encoder       zapcore.Encoder
 		writer        zapcore.WriteSyncer
@@ -83,23 +86,8 @@ func LoggerInit() error {
 	}
 	//
 	// 配置 Writer
-	var writers []zapcore.WriteSyncer
-	for i := 0; i < len(config.G().Log.Output); i++ {
-		target := config.G().Log.Output[i]
-		switch target {
-		case "stdout":
-			writers = append(writers, zapcore.WriteSyncer(os.Stdout))
-		case "stderr":
-			writers = append(writers, zapcore.WriteSyncer(os.Stderr))
-		default:
-			file, err := os.OpenFile(target, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, 0644)
-			if err != nil {
-				return errors.New("logf: " + err.Error())
-			}
-			writers = append(writers, zapcore.WriteSyncer(file))
-		}
-	}
-	writer = zapcore.NewMultiWriteSyncer(writers...)
+
+	writer, err = getWriter(config.G().Log.Output)
 	// 配置 core
 
 	level, err := zapcore.ParseLevel(config.G().Log.Level)
@@ -108,8 +96,48 @@ func LoggerInit() error {
 	}
 	core = zapcore.NewCore(encoder, writer, level)
 
-	// 这里可以添加一些自定义的 options
-	// options = append(options, zap.Development())
+	// 配置 options
+	err = optionsInit()
+	if err != nil {
+		return errors.New("logf: " + err.Error())
+	}
+
 	// 结束
+	return nil
+}
+
+func getWriter(ss []string) (zapcore.WriteSyncer, error) {
+	var writers []zapcore.WriteSyncer
+	for i := 0; i < len(ss); i++ {
+		target := ss[i]
+		switch target {
+		case "stdout":
+			writers = append(writers, zapcore.WriteSyncer(os.Stdout))
+		case "stderr":
+			writers = append(writers, zapcore.WriteSyncer(os.Stderr))
+		default:
+			dir := filepath.Dir(target)
+			err := os.MkdirAll(dir, 0755) // rwxrw-rw-
+			if err != nil {
+				return nil, errors.New("logf: " + err.Error())
+			}
+
+			file, err := os.OpenFile(target, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, 0644) // rw-r--r--
+			if err != nil {
+				return nil, errors.New("logf: " + err.Error())
+			}
+			writers = append(writers, zapcore.WriteSyncer(file))
+		}
+	}
+	return zapcore.NewMultiWriteSyncer(writers...), nil
+}
+
+func optionsInit() error {
+	// error output
+	ew, err := getWriter(config.G().Log.ErrOutput)
+	if err != nil {
+		return err
+	}
+	options = append(options, zap.ErrorOutput(ew))
 	return nil
 }

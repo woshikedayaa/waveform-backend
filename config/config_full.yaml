@@ -9,6 +9,9 @@ log:
   output:
     - "stdout"
     - "/var/log/waveform/latest.log"
+  errOutput:
+    - "stderr"
+    - "/var/log/waveform/error.log"
   # e.g. json console console_with_color
   format: json
   # 规范需要符合 zap 日志库的 zapcore.ParseLevel 的规范
