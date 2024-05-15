@@ -2,7 +2,7 @@ server:
   port: 8080
   addr: 127.0.0.1
 log:
-  # 这里有几个导出方案
+  # 这里有几个输出方案
   # stdout
   # stderr
   # <path>
