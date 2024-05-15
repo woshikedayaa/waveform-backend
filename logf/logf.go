@@ -2,10 +2,12 @@ package logf
 
 import (
 	"errors"
+	"fmt"
 	"github.com/woshikedayaa/waveform-backend/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -19,7 +21,7 @@ func LoggerInit() error {
 		encoderConfig zapcore.EncoderConfig
 		encoder       zapcore.Encoder
 		writer        zapcore.WriteSyncer
-		format        string = config.G().Log.Format
+		format        string = strings.ToLower(config.G().Log.Format)
 	)
 	// 没有输出就直接return了
 	if len(config.G().Log.Output) == 0 {
@@ -76,6 +78,8 @@ func LoggerInit() error {
 		}
 
 		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+	} else {
+		return errors.New(fmt.Sprintf("logf: Unsupported format %s", format))
 	}
 	//
 	// 配置 Writer
