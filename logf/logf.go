@@ -12,11 +12,6 @@ import (
 	"time"
 )
 
-type LoggerWrapper struct {
-	logger  *zap.Logger
-	pkgName string
-}
-
 func LoggerInit() error {
 	var (
 		err error
