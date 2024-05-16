@@ -3,7 +3,6 @@ package services
 import (
 	"errors"
 	"os"
-	"time"
 )
 
 var latest []byte
@@ -37,9 +36,8 @@ func GetLatestWave(sample, count int) ([]Point, error) {
 		}
 		if cnt%sample == 0 {
 			res = append(res, Point{
-				TS: time.Now().UnixMilli(),
-				X:  len(res),
-				Y:  num,
+				X: len(res),
+				Y: num,
 			})
 		}
 		cnt++
@@ -51,7 +49,6 @@ func GetLatestWave(sample, count int) ([]Point, error) {
 }
 
 type Point struct {
-	TS int64 `json:"t"`
-	X  int   `json:"x"`
-	Y  uint8 `json:"y"`
+	X int   `json:"x"`
+	Y uint8 `json:"y"`
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/woshikedayaa/waveform-backend/api/controllers"
 	"github.com/woshikedayaa/waveform-backend/api/middlewares"
 )
 
@@ -15,6 +16,7 @@ func InitRouter() *gin.Engine {
 		gin.Recovery(),
 		middlewares.Logging(),
 	)
-
+	apiGroup := engine.Group("/api")
+	apiGroup.GET("/latest", controllers.GetWaveFromByHttp())
 	return engine
 }
