@@ -5,7 +5,7 @@ import "go.bug.st/serial"
 type Waveform struct {
 	portName   string
 	mode       *serial.Mode
-	port       serial.Port
+	Port       serial.Port
 	latestRead []byte
 }
 
@@ -25,7 +25,7 @@ func New(portname string, mode *serial.Mode) (*Waveform, error) {
 		}
 	}
 
-	wf.port = port
+	wf.Port = port
 	wf.mode = mode
 	wf.portName = portname
 	wf.latestRead = nil
@@ -33,7 +33,7 @@ func New(portname string, mode *serial.Mode) (*Waveform, error) {
 }
 
 func (wf *Waveform) Close() error {
-	return wf.port.Close()
+	return wf.Port.Close()
 }
 
 func (wf *Waveform) Latest() []byte {

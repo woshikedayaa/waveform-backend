@@ -28,22 +28,29 @@ func (oe *OpError) Error() string {
 	if len(oe.cache) != 0 {
 		return oe.cache
 	}
-	if len(oe.port) == 0 {
-		panic("wave: OpError must order a port")
-	}
 
 	builder := strings.Builder{}
+	builder.Grow(len("wave: "))
 	builder.WriteString("wave: ")
-	builder.WriteString(oe.port)
-	builder.WriteString(": ")
 	if len(oe.op) != 0 {
+		builder.Grow(len(oe.op))
 		builder.WriteString(oe.op)
 	}
+
+	if len(oe.port) != 0 {
+		builder.Grow(len(oe.port) + 2)
+		builder.WriteString("[")
+		builder.WriteString(oe.port)
+		builder.WriteString("]")
+	}
 	if oe.raw != nil {
+		e := oe.raw.Error()
+		builder.Grow(len(e) + 2)
 		builder.WriteString(": ")
-		builder.WriteString(oe.raw.Error())
+		builder.WriteString(e)
 	}
 	if len(oe.other) != 0 {
+		builder.Grow(2 + len(oe.other))
 		builder.WriteString("(")
 		builder.WriteString(oe.other)
 		builder.WriteString(")")
