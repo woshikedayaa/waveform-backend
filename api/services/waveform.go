@@ -2,10 +2,20 @@ package services
 
 import (
 	"errors"
+	"github.com/gorilla/websocket"
 	"os"
 )
 
+type waveForm struct{}
+
+var WaveForm waveForm
+
 var latest []byte
+
+type Point struct {
+	X int   `json:"x"`
+	Y uint8 `json:"y"`
+}
 
 // GetLatestWave
 /*
@@ -14,7 +24,7 @@ var latest []byte
 */
 // sample	取样率 多少个数据取一个数据画图
 // count	最多取多少个数据
-func GetLatestWave(sample, count int) ([]Point, error) {
+func (waveForm) GetLatestWave(sample, count int) ([]Point, error) {
 	if sample == 0 || count == 0 {
 		return nil, errors.New("service: GetLatestWave sample and count must >= 1")
 	}
@@ -48,7 +58,6 @@ func GetLatestWave(sample, count int) ([]Point, error) {
 	return res, nil
 }
 
-type Point struct {
-	X int   `json:"x"`
-	Y uint8 `json:"y"`
+func (waveForm) HandleWebsocket(conn *websocket.Conn, sample string, count int) {
+
 }
