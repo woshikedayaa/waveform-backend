@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 //go:embed config_full.yaml
@@ -42,24 +43,22 @@ func G() *Config {
 
 func InitConfig() error {
 	var (
-		configPath = ""
+		configPath = filepath.Dir(GetDefaultConfigFilePath())
 		configName = "config.yaml"
 		configType = "yaml"
 	)
-
-	// 这样做是为了符合 FHS 规范
-	if runtime.GOOS == "windows" {
-		configPath, _ = os.Getwd()
-	} else {
-		configPath = "/usr/local/share/etc/waveform/"
-	}
 
 	//
 	viper.SetConfigType(configType)
 	viper.AddConfigPath(configPath)
 	viper.SetConfigFile(filepath.Join(configPath, configName))
-
-	err := viper.ReadInConfig()
+	// 看有没有配置文件 如果有配置文件就从配置文件读 没有就从默认配置文件读
+	_, err := os.Stat(filepath.Join(configPath, configName))
+	if os.IsNotExist(err) {
+		err = viper.ReadConfig(strings.NewReader(configFull))
+	} else {
+		err = viper.ReadInConfig()
+	}
 	if err != nil {
 		return errors.New("config: " + err.Error())
 	}
@@ -70,4 +69,15 @@ func InitConfig() error {
 	// todo config检查
 
 	return nil
+}
+
+func GetDefaultConfigFilePath() string {
+	var configPath string
+	// 这样做是为了符合 FHS 规范
+	if runtime.GOOS == "windows" {
+		configPath, _ = os.Getwd()
+	} else {
+		configPath = "/usr/local/share/etc/waveform/"
+	}
+	return filepath.Join(configPath, "config.yaml")
 }

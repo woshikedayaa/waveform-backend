@@ -34,9 +34,9 @@ func (w *WaveFormParam) GetFromUrl(c *gin.Context) error {
 func GetWaveFormByWebsocket() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var (
-			err    error
-			wp     = &WaveFormParam{}
-			points []services.Point
+			err error
+			wp  = &WaveFormParam{}
+			// 			points []services.Point
 		)
 		err = wp.GetFromUrl(c)
 		if err != nil {

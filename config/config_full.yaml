@@ -1,6 +1,6 @@
 server:
   port: 8080
-  addr: 127.0.0.1
+  addr: 0.0.0.0
 log:
   # 这里有几个输出方案
   # stdout
@@ -16,5 +16,6 @@ log:
   format: json
   # 规范需要符合 zap 日志库的 zapcore.ParseLevel 的规范
   level: info
+# todo 这个迁移到其他方案
 device:
   portName: "/dev/ttyUSB0"

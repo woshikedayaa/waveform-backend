@@ -1,5 +1,6 @@
 .PHONY: build clean run windows
 
+VERSION=0.0.1
 BINARY=wf
 
 SRC_DIR=.
@@ -32,3 +33,6 @@ run:
 
 clean:
 	@rm -rf $(DIST_DIR)/*
+
+docker:
+	@docker build -t waveform-backend:$(VERSION) . -f Dockerfile
