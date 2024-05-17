@@ -28,7 +28,7 @@ func GenerateRandomData(count int) []byte {
 		var res []byte
 		for i != 0 {
 			cur := i % 10
-			res = append(res, cur)
+			res = append(res, cur+'0')
 			i /= 10
 		}
 		slices.Reverse(res)
