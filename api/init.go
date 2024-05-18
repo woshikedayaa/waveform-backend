@@ -38,7 +38,7 @@ func InitRouter() *gin.Engine {
 	// 用于和前端交互的路由组
 	viewGroup := engine.Group("/view")
 	// 与前端交互的WebSocket路由
-	viewGroup.GET("/ws", controllers.HandleWebSocket)
+	viewGroup.GET("/ws", controllers.HandleWebSocket())
 
 	// 暂时用不到（暂留）
 	apiGroup := engine.Group("/api")
