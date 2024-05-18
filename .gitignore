@@ -24,3 +24,5 @@ go.work
 
 test/
 
+config.yaml
+
