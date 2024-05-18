@@ -39,6 +39,10 @@ func InitRouter() *gin.Engine {
 	viewGroup := engine.Group("/view")
 	// 与前端交互的WebSocket路由
 	viewGroup.GET("/ws", controllers.HandleWebSocket())
+	// 处理波形图数据保存的路由
+	viewGroup.POST("/save", controllers.SaveWave())
+	// 获取历史波形记录
+	viewGroup.GET("/history", controllers.GetHistory())
 
 	// 暂时用不到（暂留）
 	apiGroup := engine.Group("/api")

@@ -19,6 +19,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	// 初始化数据库
+	err = config.InitGorm()
+	if err != nil {
+		panic(err)
+	}
+
 	// 初始化路由
 	router := api.InitRouter()
 

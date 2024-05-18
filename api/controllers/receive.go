@@ -8,10 +8,21 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // 存储来自示波器硬件的数据 -> ws发送到前端
-var dataBuffer []byte
+var wsDataBuffer []struct {
+	Timestamp time.Time
+	Data      []byte
+}
+
+// 存储来自示波器硬件的数据 -> savewave保存到数据库
+var saveWaveDataBuffer []struct {
+	Timestamp time.Time
+	Data      []byte
+}
+
 var mu sync.Mutex
 
 // ReceiveHardwareData
@@ -52,7 +63,15 @@ func ReceiveHardwareData() gin.HandlerFunc {
 
 				// 保存数据到 buffer
 				mu.Lock()
-				dataBuffer = append(dataBuffer, buf[:n]...)
+				entry := struct {
+					Timestamp time.Time
+					Data      []byte
+				}{
+					Timestamp: time.Now(),
+					Data:      append([]byte(nil), buf[:n]...),
+				}
+				wsDataBuffer = append(wsDataBuffer, entry)
+				saveWaveDataBuffer = append(saveWaveDataBuffer, entry)
 				mu.Unlock()
 			}
 		}()

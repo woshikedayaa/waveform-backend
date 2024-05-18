@@ -4,9 +4,14 @@ import (
 	_ "embed"
 	"errors"
 	"github.com/spf13/viper"
+	"github.com/woshikedayaa/waveform-backend/api/models"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"time"
 )
 
 // 使用 //go:embed 注解将 config_full.yaml 嵌入到程序中作为字符串变量configFull
@@ -14,9 +19,13 @@ import (
 //go:embed config_full.yaml
 var configFull string
 
+// DB 数据库实例
+var db *gorm.DB
+
 // 全部配置
 type Config struct {
 	Server Server `json:"server" yaml:"server"`
+	Mysql  Mysql  `json:"mysql" yaml:"mysql"`
 	Log    Log    `json:"log" yaml:"log"`
 	Kcp    Kcp    `json:"kcp" yaml:"kcp"`
 }
@@ -25,6 +34,19 @@ type Config struct {
 type Server struct {
 	Port int    `json:"port" yaml:"port"`
 	Addr string `json:"addr" yaml:"addr"`
+}
+
+// 数据库配置
+type Mysql struct {
+	Host string `yaml:"host"`
+	Port int    `yaml:"port"`
+	//高级配置，例如 charset
+	Config   string `yaml:"config"`
+	DB       string `yaml:"db"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	//日志等级：debug（输出全部sql），dev（开发环境，只输出error），release（生产环境）
+	LogLevel string `yaml:"log_level"`
 }
 
 // 日志配置
@@ -90,4 +112,44 @@ func InitConfig() error {
 	// todo config检查
 
 	return nil
+}
+
+// Dsn是定义在Mysql结构体上的方法，构建并返回一个符合MySQL连接字符串。
+
+func (m *Mysql) Dsn() string {
+	dsn := m.User + ":" + m.Password + "@tcp(" + m.Host + ":" + strconv.Itoa(m.Port) + ")/" + m.DB + "?" + m.Config
+	return dsn
+}
+
+// InitGorm 初始化GORM数据库连接
+func InitGorm() error {
+	var err error
+	dsn := G().Mysql.Dsn()
+	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return err
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return err
+	}
+
+	// 设置数据库连接池
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	// 设置连接最大存活时间
+	sqlDB.SetConnMaxLifetime(time.Hour * 4)
+
+	// 自动迁移数据库模型
+	if err := db.AutoMigrate(&models.SaveWave{}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DB 获取数据库实例
+func DB() *gorm.DB {
+	return db
 }

@@ -37,18 +37,22 @@ func HandleWebSocket() gin.HandlerFunc {
 		go func() {
 			for {
 				time.Sleep(500 * time.Millisecond) // 发送频率
-
+				// 初始化data为字节切片
+				data := []byte{}
 				// 获取缓冲区中的数据
 				mu.Lock()
-				if len(dataBuffer) == 0 {
+				if len(wsDataBuffer) == 0 {
 					mu.Unlock()
 					continue
 				}
-				// 分配内存，并将dataBuffer中的数据复制到data中
-				data := make([]byte, len(dataBuffer))
-				copy(data, dataBuffer)
-				// 清空 buffer
-				dataBuffer = []byte{}
+				for _, entry := range wsDataBuffer {
+					data = append(data, entry.Data...)
+				}
+				// 清空dataBuffer
+				wsDataBuffer = []struct {
+					Timestamp time.Time
+					Data      []byte
+				}{}
 				mu.Unlock()
 
 				// 通过 WebSocket 发送数据到前端

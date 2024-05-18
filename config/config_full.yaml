@@ -1,6 +1,13 @@
 server:
   port: 8080
   addr: 127.0.0.1
+mysql:
+  host: "rm-bp111r1timrv759r10o.mysql.rds.aliyuncs.com"
+  db: "wave_test"
+  port: 3306
+  user: "wave_test"
+  password: "Wave_test"
+  log_level: "dev"
 log:
   # 这里有几个输出方案
   # stdout
