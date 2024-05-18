@@ -9,14 +9,17 @@ import (
 )
 
 func main() {
+	// 初始化路由
 	err := config.InitConfig()
 	if err != nil {
 		panic(err)
 	}
+	// 初始化日志
 	err = logf.LoggerInit()
 	if err != nil {
 		panic(err)
 	}
+	// 初始化路由
 	router := api.InitRouter()
 
 	// start!
