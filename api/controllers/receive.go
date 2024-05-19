@@ -3,9 +3,10 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/woshikedayaa/waveform-backend/config"
+	"github.com/woshikedayaa/waveform-backend/logf"
 	"github.com/woshikedayaa/waveform-backend/pkg/resp"
 	"github.com/xtaci/kcp-go/v5"
-	"log"
+	"go.uber.org/zap"
 	"net/http"
 	"sync"
 	"time"
@@ -33,6 +34,7 @@ var mu sync.Mutex
 // @Router      /hardware/receive [get]
 func ReceiveHardwareData() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		logger := logf.Open("Receive")
 		// 获取配置信息
 		kcpConfig := config.G().Kcp
 
@@ -57,7 +59,7 @@ func ReceiveHardwareData() gin.HandlerFunc {
 			for {
 				n, err := sess.Read(buf)
 				if err != nil {
-					log.Println("Failed to read from KCP server:", err)
+					logger.Error("Failed to read from KCP server:", zap.Error(err))
 					return
 				}
 
