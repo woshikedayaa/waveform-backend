@@ -22,7 +22,8 @@ func GetHistory() gin.HandlerFunc {
 		if err := config.DB().Raw("SELECT id, name, CAST(timestamp AS DATETIME) as timestamp, data FROM save_waves ORDER BY id DESC LIMIT 30").Scan(&waves).Error; err != nil {
 			// 记录详细错误信息
 			c.JSON(http.StatusInternalServerError, resp.Error("Failed to retrieve data"))
-			print(err)
+			// 日志分级还没写完，先用这个代替查看错误
+			// print(err)
 			return
 		}
 		c.JSON(http.StatusOK, waves)
