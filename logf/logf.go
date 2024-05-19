@@ -12,11 +12,7 @@ import (
 	"time"
 )
 
-type LoggerWrapper struct {
-	logger  *zap.Logger
-	pkgName string
-}
-
+// 日志初始化函数
 func LoggerInit() error {
 	var (
 		err error
@@ -26,7 +22,7 @@ func LoggerInit() error {
 		writer        zapcore.WriteSyncer
 		format        string = strings.ToLower(config.G().Log.Format)
 	)
-	// 没有输出就直接return了
+	// 检查是否需要输出日志，如果没有指定输出，则直接返回
 	if len(config.G().Log.Output) == 0 {
 		return nil
 	}
