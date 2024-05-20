@@ -3,8 +3,9 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/woshikedayaa/waveform-backend/logf"
 	"github.com/woshikedayaa/waveform-backend/pkg/resp"
-	"log"
+	"go.uber.org/zap"
 	"net/http"
 	"time"
 )
@@ -24,6 +25,8 @@ var upgrader = websocket.Upgrader{
 // 处理 WebSocket连接
 func HandleWebSocket() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 创建 logger
+		logger := logf.Open("WS")
 		// 升级 HTTP 连接为 WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
@@ -58,7 +61,7 @@ func HandleWebSocket() gin.HandlerFunc {
 				// 通过 WebSocket 发送数据到前端
 				err := conn.WriteMessage(websocket.BinaryMessage, data)
 				if err != nil {
-					log.Println("Failed to send message:", err)
+					logger.Error("Failed to send message:", zap.Error(err))
 					break
 				}
 			}
@@ -68,17 +71,17 @@ func HandleWebSocket() gin.HandlerFunc {
 			// 读取前端发送的消息
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
-				log.Println("Failed to send message:", err)
+				logger.Error("Failed to send message:", zap.Error(err))
 				break
 			}
-			log.Printf("收到消息为: %s\n", msg)
+			logger.Info("收到消息为:", zap.String("message", string(msg)))
 
 			// 在这里处理接收到的消息，可以进行反射等操作
 
 			// 回复客户端收到的消息
 			err = conn.WriteMessage(websocket.TextMessage, msg)
 			if err != nil {
-				log.Println("Failed to send message:", err)
+				logger.Error("Failed to send message:", zap.Error(err))
 				break
 			}
 		}
