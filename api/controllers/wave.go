@@ -2,11 +2,12 @@ package controllers
 
 import (
 	"errors"
+	"net/http"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/woshikedayaa/waveform-backend/api/services"
 	"github.com/woshikedayaa/waveform-backend/pkg/resp"
-	"net/http"
-	"strconv"
 )
 
 type WaveFormParam struct {
@@ -36,7 +37,6 @@ func GetWaveFormByWebsocket() gin.HandlerFunc {
 		var (
 			err error
 			wp  = &WaveFormParam{}
-			// 			points []services.Point
 		)
 		err = wp.GetFromUrl(c)
 		if err != nil {

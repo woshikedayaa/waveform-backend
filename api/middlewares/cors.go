@@ -1,3 +1,5 @@
+// 跨域中间件
+
 package middlewares
 
 import (
