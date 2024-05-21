@@ -10,18 +10,22 @@ import (
 )
 
 func main() {
+	configFileExist := true
 	err := config.InitConfig()
 	if err != nil {
-		panic(err)
+		if os.IsNotExist(err) {
+			configFileExist = false
+		} else {
+			panic(err)
+		}
 	}
 	err = logf.LoggerInit()
 	if err != nil {
 		panic(err)
 	}
 	logger := logf.Open("main")
-	// 检查是不是有config.yaml配置文件 没有就抛出一个warn
-	_, err = os.Stat(config.GetDefaultConfigFilePath())
-	if os.IsNotExist(err) {
+	// 检查配置文件是否存在 现在用logger打印出来提示用户
+	if !configFileExist {
 		logger.Warn("无法找到config.yaml，将使用默认配置。请参考文档进行配置")
 	}
 	// 配置路由
@@ -30,8 +34,8 @@ func main() {
 	// start!
 	if err = router.Run(strings.Join(
 		[]string{
-			config.G().Server.Addr,
-			strconv.Itoa(config.G().Server.Port),
+			config.G().Server.Http.Addr,
+			strconv.Itoa(config.G().Server.Http.Port),
 		}, ":")); err != nil {
 		panic(err)
 	}
