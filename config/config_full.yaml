@@ -5,6 +5,7 @@ server:
   kcp:
     # 硬件的网络地址
     addr: 127.0.0.1
+    port: 8081
     # 使用 "fast" 模式以获得最佳性能
     mode: "fast"
     # 不使用任何加密

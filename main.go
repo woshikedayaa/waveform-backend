@@ -1,15 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"github.com/woshikedayaa/waveform-backend/api"
 	"github.com/woshikedayaa/waveform-backend/config"
 	"github.com/woshikedayaa/waveform-backend/logf"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 func main() {
+	if slices.Contains(os.Args, "config") {
+		fmt.Print(config.GetExampleConfig())
+		return
+	}
+
 	configFileExist := true
 	err := config.InitConfig()
 	if err != nil {
