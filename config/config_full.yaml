@@ -1,13 +1,28 @@
 server:
-  port: 8080
-  addr: 127.0.0.1
-mysql:
-  host: "rm-bp111r1timrv759r10o.mysql.rds.aliyuncs.com"
-  db: "wave_test"
-  port: 3306
-  user: "wave_test"
-  password: "Wave_test"
-  log_level: "dev"
+  http:
+    port: 8080
+    addr: 127.0.0.1
+  kcp:
+    # 硬件的网络地址
+    addr: 127.0.0.1
+    # 使用 "fast" 模式以获得最佳性能
+    mode: "fast"
+    # 不使用任何加密
+    crypt: "none"
+    # 发送窗口大小，设为 128
+    sndwnd: 128
+    # 接收窗口大小，设为 128
+    rcvwnd: 128
+    # 最大传输单元，设为 1400 字节
+    mtu: 1400
+    # 设置为 1 以启用快速模式
+    no-delay: true
+    # 设置为 20 毫秒以减少延迟
+    interval: 20
+    # 设置为 2 以减少重传次数
+    resend: 2
+    # 设置为 1 以关闭拥塞控制
+    nc: 1
 log:
   # 这里有几个输出方案
   # stdout
@@ -16,21 +31,15 @@ log:
   output:
     - "stdout"
     - "/var/log/waveform/latest.log"
-  errOutput:
+  err-output:
     - "stderr"
     - "/var/log/waveform/error.log"
   # e.g. json console console_with_color
   format: json
   # 规范需要符合 zap 日志库的 zapcore.ParseLevel 的规范
   level: info
-kcp:
-  listen_address: "127.0.0.1:8888" # 硬件的网络地址
-  mode: "fast" # 使用 "fast" 模式以获得最佳性能
-  crypt: "none" # 不使用任何加密
-  sndwnd: 128 # 发送窗口大小，设为 128
-  rcvwnd: 128 # 接收窗口大小，设为 128
-  mtu: 1400 # 最大传输单元，设为 1400 字节
-  nodelay: 1 # 设置为 1 以启用快速模式
-  interval: 20 # 设置为 20 毫秒以减少延迟
-  resend: 2 # 设置为 2 以减少重传次数
-  nc: 1 # 设置为 1 以关闭拥塞控制
+
+db:
+  driver: sqlite
+  db-name: waveform
+

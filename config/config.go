@@ -4,152 +4,193 @@ import (
 	_ "embed"
 	"errors"
 	"github.com/spf13/viper"
-	"github.com/woshikedayaa/waveform-backend/api/models"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
-	"time"
+	"slices"
+	"strings"
 )
 
-// 使用 //go:embed 注解将 config_full.yaml 嵌入到程序中作为字符串变量configFull
+// 真有GPT味道啊(指下面这句哈)（来自某人吐槽）
+// 使用 go:embed 注解将 config_full.yaml 嵌入到程序中作为字符串变量configFull
 //
 //go:embed config_full.yaml
 var configFull string
 
-// DB 数据库实例
-var db *gorm.DB
+const (
+	DefaultConfigFilePrefix = "config"
+)
 
-// 全部配置
+// Config 全部配置
 type Config struct {
-	Server Server `json:"server" yaml:"server"`
-	Mysql  Mysql  `json:"mysql" yaml:"mysql"`
-	Log    Log    `json:"log" yaml:"log"`
-	Kcp    Kcp    `json:"kcp" yaml:"kcp"`
+	Server Servers `json:"server" yaml:"server"`
+	DB     DB      `json:"db" yaml:"db"`
+	Log    Log     `json:"log" yaml:"log"`
 }
 
-// 服务器监听的地址和端口
-type Server struct {
+// ServerObject 只提供服务器基础配置
+type ServerObject struct {
 	Port int    `json:"port" yaml:"port"`
 	Addr string `json:"addr" yaml:"addr"`
 }
 
-// 数据库配置
-type Mysql struct {
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
-	//高级配置，例如 charset
-	Config   string `yaml:"config"`
-	DB       string `yaml:"db"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	//日志等级：debug（输出全部sql），dev（开发环境，只输出error），release（生产环境）
-	LogLevel string `yaml:"log_level"`
+type Servers struct {
+	Http HttpServer `json:"http" yaml:"http"`
+	Kcp  KcpServer  `json:"kcp" yaml:"kcp"`
 }
 
-// 日志配置
+type HttpServer struct {
+	ServerObject
+}
+
+// KcpServer KCP 协议配置（已包括调优配置）
+type KcpServer struct {
+	ServerObject
+	Mode     string `json:"mode" yaml:"mode"`
+	Crypt    string `json:"crypt" yaml:"crypt"`
+	Sndwnd   int    `json:"sndwnd" yaml:"sndwnd"`
+	Rcvwnd   int    `json:"rcvwnd" yaml:"rcvwnd"`
+	Mtu      int    `json:"mtu" yaml:"mtu"`
+	NoDelay  bool   `json:"no-delay" yaml:"no-delay"`
+	Interval int    `json:"interval" yaml:"interval"`
+	Resend   int    `json:"resend" yaml:"resend"`
+	NC       int    `json:"nc" yaml:"nc"`
+}
+
+type DB struct {
+	Driver string `json:"driver" yaml:"driver"`
+	DbName string `json:"db-name" yaml:"db-name"`
+}
+
+// Log 日志配置
 type Log struct {
 	Output    []string `json:"output" yaml:"output"`
-	ErrOutput []string `json:"errOutput" yaml:"errOutput"`
+	ErrOutput []string `json:"err-output" yaml:"err-output"`
 	Level     string   `json:"level" yaml:"level"`
 	Format    string   `json:"format" yaml:"format"`
-}
-
-// KCP 协议配置（已包括调优配置）
-type Kcp struct {
-	ListenAddress string `json:"listen_address" yaml:"listen_address"`
-	Mode          string `json:"mode" yaml:"mode"`
-	Crypt         string `json:"crypt" yaml:"crypt"`
-	Sndwnd        int    `json:"sndwnd" yaml:"sndwnd"`
-	Rcvwnd        int    `json:"rcvwnd" yaml:"rcvwnd"`
-	Mtu           int    `json:"mtu" yaml:"mtu"`
-	Nodelay       int    `json:"nodelay" yaml:"nodelay"`
-	Interval      int    `json:"interval" yaml:"interval"`
-	Resend        int    `json:"resend" yaml:"resend"`
-	Nc            int    `json:"nc" yaml:"nc"`
 }
 
 // 存储解析后的配置
 var config *Config = &Config{}
 
-// 将配置存入全局，方便其他包引用
+// G 将配置存入全局，方便其他包引用
 func G() *Config {
 	return config
 }
 
-// 配置初始化
+// InitConfig 配置初始化
 func InitConfig() error {
+	path, typ, err := findAvailAbleConfigFile()
+	if err != nil {
+		if os.IsNotExist(err) {
+			// 没找到配置文件 从默认的读
+			// 返回 os.ErrNotExist 供其他函数将会使用默认配置文件
+			err = viper.ReadConfig(strings.NewReader(configFull))
+			if err != nil {
+				return err
+			}
+			err = viper.Unmarshal(config)
+			if err != nil {
+				return err
+			}
+			// 默认配置文件不需要后面的配置文件检查了
+			return os.ErrNotExist
+		} else {
+			return err
+		}
+	} else {
+		// 这里是找到可用的配置文件了 就从配置文件读
+		// 配置 Viper
+		viper.SetConfigType(typ)
+		viper.AddConfigPath(GetDefaultConfigFileDir())
+		viper.SetConfigFile(path)
+
+		// 读取配置文件
+		err = viper.ReadInConfig()
+		if err != nil {
+			return errors.New("config: " + err.Error())
+		}
+		// 将配置文件内容反序列化到config变量中
+		err = viper.Unmarshal(config)
+		if err != nil {
+			return errors.New("config: " + err.Error())
+		}
+		// todo config检查
+		return nil
+	}
+}
+
+// findAvailAbleConfigFile 检查支持的配置文件是否存在
+// 返回 第一个是全部路径(包含路径和名字) 第二个是返回这个配置文件的类型 第三个返回错误
+// 扫描顺序 跟 GetSupportedConfigFileSuffix 的返回的数组顺序有关
+func findAvailAbleConfigFile() (path string, Typ string, err error) {
+	var (
+		dir   = GetDefaultConfigFileDir()
+		names = GetSupportedConfigFileName()
+	)
+	for i := 0; i < len(names); i++ {
+		path = filepath.Join(dir, names[i])
+		_, err = os.Stat(filepath.Join(dir, names[i]))
+		if os.IsNotExist(err) {
+			err = nil
+			continue
+		} else {
+			return path, GetSupportedConfigFileSuffix()[i], nil
+		}
+	}
+	return "", "", os.ErrNotExist
+}
+
+// GetDefaultConfigFileDir 这个用来获取默认配置文件的路径(文件夹)
+func GetDefaultConfigFileDir() string {
 	var (
 		configPath = ""
-		configName = "config.yaml"
-		configType = "yaml"
 	)
-
 	// 这样做是为了符合 FHS 规范（如果是windows系统，获取当前工作目录作为配置路径。否则使用Linux下符合FHS规范的路径）
 	if runtime.GOOS == "windows" {
 		configPath, _ = os.Getwd()
 	} else {
 		configPath = "/usr/local/share/etc/waveform/"
 	}
-
-	// 配置 Viper
-	viper.SetConfigType(configType)
-	viper.AddConfigPath(configPath)
-	viper.SetConfigFile(filepath.Join(configPath, configName))
-
-	// 读取配置文件
-	err := viper.ReadInConfig()
-	if err != nil {
-		return errors.New("config: " + err.Error())
-	}
-	// 将配置文件内容反序列化到config变量中
-	err = viper.Unmarshal(config)
-	if err != nil {
-		return errors.New("config: " + err.Error())
-	}
-	// todo config检查
-
-	return nil
+	return configPath
 }
 
-// Dsn是定义在Mysql结构体上的方法，构建并返回一个符合MySQL连接字符串。
-
-func (m *Mysql) Dsn() string {
-	dsn := m.User + ":" + m.Password + "@tcp(" + m.Host + ":" + strconv.Itoa(m.Port) + ")/" + m.DB + "?" + m.Config
-	return dsn
+// GetDefaultConfigFileFull 这个用来获取默认的配置文件全名 包含路径和文件名
+func GetDefaultConfigFileFull() string {
+	return filepath.Join(GetDefaultConfigFileDir(), GetDefaultConfigFileName())
 }
 
-// InitGorm 初始化GORM数据库连接
-func InitGorm() error {
-	var err error
-	dsn := G().Mysql.Dsn()
-	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		return err
-	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		return err
-	}
-
-	// 设置数据库连接池
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	// 设置连接最大存活时间
-	sqlDB.SetConnMaxLifetime(time.Hour * 4)
-
-	// 自动迁移数据库模型
-	if err := db.AutoMigrate(&models.SaveWave{}); err != nil {
-		return err
-	}
-
-	return nil
+// GetDefaultConfigFileName 这个用来获取默认的配置文件名称
+func GetDefaultConfigFileName() string {
+	return strings.Join([]string{DefaultConfigFilePrefix, "yaml"}, ".")
 }
 
-// DB 获取数据库实例
-func DB() *gorm.DB {
-	return db
+// GetSupportedConfigFileName 这个可以获得支持的配置文件名称
+func GetSupportedConfigFileName() []string {
+	var (
+		suffixs = GetSupportedConfigFileSuffix()
+		res     []string
+	)
+	for i := 0; i < len(suffixs); i++ {
+		res = append(res, strings.Join([]string{DefaultConfigFilePrefix, suffixs[i]}, "."))
+	}
+	return res
+}
+
+// GetSupportedConfigFileSuffix 支持的配置文件格式
+func GetSupportedConfigFileSuffix() []string {
+	return []string{"json", "yaml", "yml"}
+}
+
+// IsConfigFileSupport 这个用来检查一个配置文件是否属于支持的配置文件
+func IsConfigFileSupport(name string) bool {
+	name = filepath.Base(name)
+	sp := strings.Split(name, ".")
+	// 这里不复用写好的方法就是这里有优化
+	if len(sp) != 2 || sp[0] != DefaultConfigFilePrefix {
+		return false
+	}
+	a := GetSupportedConfigFileSuffix()
+
+	return slices.Contains(a, sp[1])
 }
