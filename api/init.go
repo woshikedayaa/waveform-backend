@@ -9,6 +9,8 @@ import (
 // InitRouter 这个文件取代 router 包
 // 初始化路由函数
 func InitRouter() *gin.Engine {
+	ginConfigure()
+
 	engine := gin.New()
 
 	//配置中间件

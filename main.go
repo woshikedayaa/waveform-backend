@@ -6,14 +6,17 @@ import (
 	"github.com/woshikedayaa/waveform-backend/config"
 	"github.com/woshikedayaa/waveform-backend/logf"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 )
 
+// Version 在构建的时候注入
+var Version string
+
 func main() {
-	if slices.Contains(os.Args, "config") {
-		fmt.Print(config.GetExampleConfig())
+	if len(os.Args) > 1 {
+		job := os.Args[1]
+		DoJob(job)
 		return
 	}
 
@@ -39,11 +42,26 @@ func main() {
 	router := api.InitRouter()
 
 	// start!
-	if err = router.Run(strings.Join(
+	ipPort := strings.Join(
 		[]string{
 			config.G().Server.Http.Addr,
 			strconv.Itoa(config.G().Server.Http.Port),
-		}, ":")); err != nil {
+		}, ":")
+	// 这里就不用zap的 zap.string 了
+	logger.Warn("HTTP 服务器将会启动在 " + ipPort)
+	if err = router.Run(ipPort); err != nil {
 		panic(err)
 	}
+}
+
+func DoJob(job string) {
+	switch job {
+	case "config":
+		fmt.Print(config.GetExampleConfig())
+	case "version":
+		fmt.Println(Version)
+	default:
+		fmt.Printf("不支持的操作 %s\n", job)
+	}
+	return
 }
