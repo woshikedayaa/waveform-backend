@@ -6,7 +6,6 @@ import (
 	"github.com/woshikedayaa/waveform-backend/api/services"
 	"github.com/woshikedayaa/waveform-backend/logf"
 	"github.com/woshikedayaa/waveform-backend/pkg/resp"
-	"go.uber.org/zap"
 	"net/http"
 	"time"
 )
@@ -33,12 +32,12 @@ func WebSocketController() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, resp.Error("Failed to upgrade to WebSocket"))
 			return
 		}
-		// 函数结束时关闭连接
-		defer func() {
-			if err := conn.Close(); err != nil {
-				logger.Error("Error closing connect: %v", zap.Error(err))
-			}
-		}()
+		//// 函数结束时关闭连接
+		//defer func() {
+		//	if err := conn.Close(); err != nil {
+		//		logger.Error("Error closing connect: %v", zap.Error(err))
+		//	}
+		//}()
 
 		// 定时发送接收到的硬件数据
 		go services.SendWebSocketData(conn)
