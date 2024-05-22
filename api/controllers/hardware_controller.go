@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,9 +19,9 @@ func ReceiveHardwareDataController() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		err := services.ReceiveHardwareData()
 		if err != nil {
-			c.JSON(http.StatusBadGateway, resp.Error("Failed to connect to KCP server"))
+			c.JSON(http.StatusBadGateway, resp.Error(fmt.Sprintf("failed to connect to kcp server err: %s", err)))
 			return
 		}
-		c.JSON(http.StatusOK, resp.Success("Started receiving data"))
+		c.JSON(http.StatusOK, resp.Success("started receiving data"))
 	}
 }
