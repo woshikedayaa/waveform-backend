@@ -1,0 +1,15 @@
+info:
+  contact: {}
+paths:
+  /hardware/receive:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 该接口用于接收来自硬件的二进制数据
+      responses:
+        "200":
+          description: Started receiving data
+          schema:
+            type: string
+      summary: 接收来自硬件的数据
+swagger: "2.0"
