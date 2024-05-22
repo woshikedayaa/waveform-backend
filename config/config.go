@@ -47,7 +47,7 @@ type KcpServer struct {
 	Sndwnd   int    `json:"sndwnd" yaml:"sndwnd"`
 	Rcvwnd   int    `json:"rcvwnd" yaml:"rcvwnd"`
 	Mtu      int    `json:"mtu" yaml:"mtu"`
-	NoDelay  bool   `json:"no-delay" yaml:"no-delay"`
+	NoDelay  int    `json:"no-delay" yaml:"no-delay"`
 	Interval int    `json:"interval" yaml:"interval"`
 	Resend   int    `json:"resend" yaml:"resend"`
 	NC       int    `json:"nc" yaml:"nc"`
