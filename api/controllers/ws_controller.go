@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/woshikedayaa/waveform-backend/api/services"
@@ -29,7 +30,7 @@ func WebSocketController() gin.HandlerFunc {
 		// 升级 HTTP 连接为 WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, resp.Error("Failed to upgrade to WebSocket"))
+			c.JSON(http.StatusBadRequest, resp.Error(fmt.Sprintf("failed to upgrade to webSocket %s", err.Error())))
 			return
 		}
 		//// 函数结束时关闭连接
