@@ -1,21 +1,26 @@
-.PHONY: deploy develop init default windows run clean docker
+.PHONY: deploy develop init default windows run clean docker install uninstall
 
 .DEFAULT_GOAL=default
-
-VERSION=0.0.1
-BINARY=wf
-SRC_DIR=.
-DIST_DIR=./bin
+#
+VERSION=0.1
+# build
+BINARY=waveform
 ALL_ARCH=arm arm64 386 amd64 ppc64le riscv64 \
 	mips mips64le mipsle loong64 s390x
 BUILD_ARGS=-trimpath -ldflags="-s -w -X main.Version=$(VERSION)"
 DEPLOY_TAGS="deploy"
 DEVELOP_TAGS="develop"
+# dir
+SRC_DIR=.
+DIST_DIR=./bin
+INSTALL_DIR=/usr/local/bin
+CONFIG_DIR=/usr/local/share/etc/waveform
+LOG_DIR=/var/log/waveform
 
 # 这个是为了发布用的 可以构建全部的架构 可以发布到 release
 deploy: clean $(ALL_ARCH) windows
 develop: clean
-	@CGO_ENABLED=0 go build \
+	@CGO_ENABLED=0 GOMIPS=softfloat go build \
      		$(BUILD_ARGS) -tags $(DEVELOP_TAGS) -o $(DIST_DIR)/$(BINARY)_$(VERSION) $(SRC_DIR)/*.go
 
 init:
@@ -46,5 +51,22 @@ clean: init
 	@rm -rf $(DIST_DIR)/*
 
 docker:
-	@docker build -t waveform-backend:$(VERSION) . -f Dockerfile
+	@docker build -t $(BINARY):$(VERSION) . -f Dockerfile
 
+install:
+	@echo "Create LOG_DIR=$(LOG_DIR) CONFIG_DIR=$(CONFIG_DIR)"
+	@mkdir -p $(LOG_DIR) $(CONFIG_DIR)
+	@cp $(SRC_DIR)/config/config_full.yaml $(CONFIG_DIR)/config.yaml
+	@echo "Build .... "
+	@CGO_ENABLED=0 GOMIPS=softfloat go build \
+		$(BUILD_ARGS) -tags $(DEPLOY_TAGS) -o /tmp/$(BINARY) $(SRC_DIR)/*.go
+	@echo "Install ...."
+	@install -m 0755 -o root -g root -T /tmp/$(BINARY) $(INSTALL_DIR)/$(BINARY)
+	@rm -f /tmp/$(BINARY)
+
+uninstall:
+	@echo "Remove binary file $(INSTALL_DIR)/$(BINARY)"
+	@rm -f $(INSTALL_DIR)/$(BINARY)
+	@echo "Remove config dir  $(CONFIG_DIR)"
+	@rm -rf $(CONFIG_DIR)
+	@echo "Uninstall success"

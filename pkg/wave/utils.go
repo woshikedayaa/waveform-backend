@@ -11,7 +11,7 @@ func ScanAvailablePort() ([]string, error) {
 
 	if err != nil {
 		return nil, &OpError{
-			raw: err,
+			err: err,
 			op:  "scan",
 		}
 	}

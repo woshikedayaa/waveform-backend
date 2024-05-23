@@ -19,7 +19,7 @@ func New(portname string, mode *serial.Mode) (*Waveform, error) {
 	port, err = serial.Open(portname, mode)
 	if err != nil {
 		return nil, &OpError{
-			raw:  err,
+			err:  err,
 			op:   "open",
 			port: portname,
 		}

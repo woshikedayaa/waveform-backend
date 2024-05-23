@@ -16,7 +16,12 @@ func SendWebSocketData(conn *websocket.Conn) {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	// 函数结束时停止ticker
 	defer ticker.Stop()
-
+	// 函数结束时关闭连接
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logger.Error("Error closing connection: %v", zap.Error(err))
+		}
+	}()
 	for {
 		select {
 		case <-ticker.C:
@@ -43,6 +48,12 @@ func SendWebSocketData(conn *websocket.Conn) {
 // ReceiveWebSocketMessage 接收前端发送的消息
 func ReceiveWebSocketMessage(conn *websocket.Conn) {
 	logger := logf.Open("WsReceiveMessage")
+	// 函数结束时关闭连接
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logger.Error("Error closing connection: %v", zap.Error(err))
+		}
+	}()
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
