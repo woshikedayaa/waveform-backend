@@ -26,4 +26,4 @@ test/
 
 config.yaml
 
-dist/
+bin/

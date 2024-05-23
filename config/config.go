@@ -28,30 +28,26 @@ type Config struct {
 	Log    Log     `json:"log" yaml:"log"`
 }
 
-// ServerObject 只提供服务器基础配置
-type ServerObject struct {
-	Port int    `json:"port" yaml:"port"`
-	Addr string `json:"addr" yaml:"addr"`
-}
-
 type Servers struct {
 	Http HttpServer `json:"http" yaml:"http"`
 	Kcp  KcpServer  `json:"kcp" yaml:"kcp"`
 }
 
 type HttpServer struct {
-	ServerObject
+	Addr string `json:"addr" yaml:"addr"`
+	Port int    `json:"port" yaml:"port"`
 }
 
 // KcpServer KCP 协议配置（已包括调优配置）
 type KcpServer struct {
-	ServerObject
+	Addr     string `json:"addr" yaml:"addr"`
+	Port     int    `json:"port" yaml:"port"`
 	Mode     string `json:"mode" yaml:"mode"`
 	Crypt    string `json:"crypt" yaml:"crypt"`
 	Sndwnd   int    `json:"sndwnd" yaml:"sndwnd"`
 	Rcvwnd   int    `json:"rcvwnd" yaml:"rcvwnd"`
 	Mtu      int    `json:"mtu" yaml:"mtu"`
-	NoDelay  bool   `json:"no-delay" yaml:"no-delay"`
+	NoDelay  int    `json:"no-delay" yaml:"no-delay"`
 	Interval int    `json:"interval" yaml:"interval"`
 	Resend   int    `json:"resend" yaml:"resend"`
 	NC       int    `json:"nc" yaml:"nc"`
@@ -193,4 +189,8 @@ func IsConfigFileSupport(name string) bool {
 	a := GetSupportedConfigFileSuffix()
 
 	return slices.Contains(a, sp[1])
+}
+
+func GetExampleConfig() string {
+	return configFull
 }
