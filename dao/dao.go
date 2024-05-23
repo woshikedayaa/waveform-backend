@@ -72,7 +72,7 @@ func openConnection(dt DriverType, dc config.DB) (*gorm.DB, error) {
 		dsn = strings.Join([]string{dc.DbName, "db"}, ".")
 		return gorm.Open(sqlite.Open(dsn))
 	case MysqlDriver:
-		// todo build mysql dsn
+		// todo mysql dsn
 		return gorm.Open(mysql.Open(dsn))
 	// todo full support current database type
 	default:
@@ -81,4 +81,9 @@ func openConnection(dt DriverType, dc config.DB) (*gorm.DB, error) {
 			suggestion: "unsupported database type",
 		}
 	}
+}
+
+// Conn 返回当前数据库连接
+func Conn() *gorm.DB {
+	return db
 }

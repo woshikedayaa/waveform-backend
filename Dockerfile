@@ -14,6 +14,7 @@ EOT
 FROM scratch as prob
 
 EXPOSE 8080
+EXPOSE 8081
 
 VOLUME /usr/local/share/etc/waveform/
 VOLUME /var/log/waveform/
