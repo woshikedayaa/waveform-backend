@@ -5,7 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/woshikedayaa/waveform-backend/api/services"
-	"github.com/woshikedayaa/waveform-backend/logf"
 	"github.com/woshikedayaa/waveform-backend/pkg/resp"
 	"net/http"
 	"time"
@@ -25,20 +24,13 @@ var upgrader = websocket.Upgrader{
 
 // WebSocketController 处理 WebSocket 连接
 func WebSocketController() gin.HandlerFunc {
-	logger := logf.Open("WsController")
 	return func(c *gin.Context) {
 		// 升级 HTTP 连接为 WebSocket
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, resp.Error(fmt.Sprintf("failed to upgrade to webSocket %s", err.Error())))
+			c.JSON(http.StatusBadRequest, resp.Error(fmt.Sprintf("failed to upgrade to webSocket err: %s", err)))
 			return
 		}
-		//// 函数结束时关闭连接
-		//defer func() {
-		//	if err := conn.Close(); err != nil {
-		//		logger.Error("Error closing connect: %v", zap.Error(err))
-		//	}
-		//}()
 
 		// 定时发送接收到的硬件数据
 		go services.SendWebSocketData(conn)
