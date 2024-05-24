@@ -5,8 +5,9 @@
 VERSION=0.1
 # build
 BINARY=waveform
-ALL_ARCH=arm arm64 386 amd64 ppc64le riscv64 \
-	mips mips64le mipsle loong64 s390x
+
+# 这里还有好多架构不支持 例如 mips全系列 loong64
+ALL_ARCH=arm arm64 386 amd64 ppc64le riscv64 s390x
 BUILD_ARGS=-trimpath -ldflags="-s -w -X main.Version=$(VERSION)"
 DEPLOY_TAGS="deploy"
 DEVELOP_TAGS="develop"
@@ -18,7 +19,7 @@ CONFIG_DIR=/usr/local/share/etc/waveform
 LOG_DIR=/var/log/waveform
 
 # 这个是为了发布用的 可以构建全部的架构 可以发布到 release
-deploy: clean $(ALL_ARCH) windows
+deploy: clean $(ALL_ARCH)
 develop: clean
 	@CGO_ENABLED=0 GOMIPS=softfloat go build \
      		$(BUILD_ARGS) -tags $(DEVELOP_TAGS) -o $(DIST_DIR)/$(BINARY)_$(VERSION) $(SRC_DIR)/*.go
@@ -37,6 +38,7 @@ $(ALL_ARCH):
 	@CGO_ENABLED=0 GOOS=linux GOARCH=$@ GOMIPS=softfloat go build \
 		$(BUILD_ARGS) -tags $(DEPLOY_TAGS) -o $(DIST_DIR)/$(BINARY)_$(VERSION)_linux_$@ $(SRC_DIR)/*.go
 
+# 这个编译不过 因为sqlite 的不支持
 windows:
 	@echo "Building Windows 32-bit & 64-bit ..."
 	@CGO_ENABLED=0 GOOS=windows GOARCH=386 go build \
