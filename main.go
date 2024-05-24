@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/woshikedayaa/waveform-backend/api"
 	"github.com/woshikedayaa/waveform-backend/config"
+	"github.com/woshikedayaa/waveform-backend/dao"
 	"github.com/woshikedayaa/waveform-backend/logf"
+	"go.uber.org/zap"
 	"os"
 	"strconv"
 	"strings"
@@ -37,6 +39,12 @@ func main() {
 	// 检查配置文件是否存在 现在用logger打印出来提示用户
 	if !configFileExist {
 		logger.Warn("无法找到config.yaml，将使用默认配置。请参考文档进行配置")
+	}
+	// 配置数据库
+	err = dao.InitDataBase()
+	if err != nil {
+		logger.Fatal("can not init database ", zap.Error(err))
+		return
 	}
 	// 配置路由
 	router := api.InitRouter()
