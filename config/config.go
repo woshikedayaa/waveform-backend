@@ -81,6 +81,7 @@ func InitConfig() error {
 		if os.IsNotExist(err) {
 			// 没找到配置文件 从默认的读
 			// 返回 os.ErrNotExist 供其他函数将会使用默认配置文件
+			viper.SetConfigType("yaml")
 			err = viper.ReadConfig(strings.NewReader(configFull))
 			if err != nil {
 				return err
