@@ -31,11 +31,6 @@ func WebSocketController() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, resp.Error(fmt.Sprintf("failed to upgrade to webSocket err: %s", err)))
 			return
 		}
-
-		// 定时发送接收到的硬件数据
-		go services.SendWebSocketData(conn)
-
-		// 接收并处理前端发送的消息
-		go services.ReceiveWebSocketMessage(conn)
+		go services.HandleWebsocketForWaveform(conn, 10*time.Second)
 	}
 }
