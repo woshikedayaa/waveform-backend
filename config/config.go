@@ -47,7 +47,7 @@ type KcpServer struct {
 	Sndwnd   int    `json:"sndwnd" yaml:"sndwnd"`
 	Rcvwnd   int    `json:"rcvwnd" yaml:"rcvwnd"`
 	Mtu      int    `json:"mtu" yaml:"mtu"`
-	NoDelay  int    `json:"no-delay" yaml:"no-delay"`
+	NoDelay  int    `json:"noDelay" yaml:"noDelay"`
 	Interval int    `json:"interval" yaml:"interval"`
 	Resend   int    `json:"resend" yaml:"resend"`
 	NC       int    `json:"nc" yaml:"nc"`
@@ -55,13 +55,13 @@ type KcpServer struct {
 
 type DB struct {
 	Driver string `json:"driver" yaml:"driver"`
-	DbName string `json:"db-name" yaml:"db-name"`
+	DbName string `json:"dbName" yaml:"dbName"`
 }
 
 // Log 日志配置
 type Log struct {
 	Output    []string `json:"output" yaml:"output"`
-	ErrOutput []string `json:"err-output" yaml:"err-output"`
+	ErrOutput []string `json:"errOutput" yaml:"errOutput"`
 	Level     string   `json:"level" yaml:"level"`
 	Format    string   `json:"format" yaml:"format"`
 }
@@ -81,6 +81,7 @@ func InitConfig() error {
 		if os.IsNotExist(err) {
 			// 没找到配置文件 从默认的读
 			// 返回 os.ErrNotExist 供其他函数将会使用默认配置文件
+			viper.SetConfigType("yaml")
 			err = viper.ReadConfig(strings.NewReader(configFull))
 			if err != nil {
 				return err
