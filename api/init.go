@@ -37,10 +37,6 @@ func InitRouter() *gin.Engine {
 			"msg": "this is ok!",
 		})
 	})
-	// 用于接收硬件数据的路由组
-	hardwareGroup := engine.Group("/hardware")
-	// 处理波形图数据保存的路由
-	hardwareGroup.POST("/receive", controllers.ReceiveHardwareDataController())
 	// 用于和前端交互的路由组
 	viewGroup := engine.Group("/view")
 	// 与前端交互的WebSocket路由
