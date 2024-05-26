@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// 日志中间件函数
+// Logging 日志中间件函数
 func Logging() gin.HandlerFunc {
 	// 初始化一个用于 HTTP 请求的日志实例
 	logger := logf.Open("HTTP")

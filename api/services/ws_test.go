@@ -18,7 +18,7 @@ func TestWS_Serve(t *testing.T) {
 		go func() {
 			defer ws.Close()
 			for ws.WriteReadAble() {
-				messageType, data, err := ws.ReadText()
+				messageType, data, err := ws.Read()
 
 				if err != nil {
 					ws.logger.Error("read", zap.Error(err))

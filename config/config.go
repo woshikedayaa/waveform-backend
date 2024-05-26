@@ -3,7 +3,11 @@ package config
 import (
 	_ "embed"
 	"errors"
+	"fmt"
 	"github.com/spf13/viper"
+	"github.com/woshikedayaa/waveform-backend/pkg/utils"
+	"go.uber.org/zap/zapcore"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -23,14 +27,14 @@ const (
 
 // Config 全部配置
 type Config struct {
-	Server Servers `json:"server" yaml:"server"`
-	DB     DB      `json:"db" yaml:"db"`
-	Log    Log     `json:"log" yaml:"log"`
+	Server *Servers `json:"server" yaml:"server"`
+	DB     *DB      `json:"db" yaml:"db"`
+	Log    *Log     `json:"log" yaml:"log"`
 }
 
 type Servers struct {
-	Http HttpServer `json:"http" yaml:"http"`
-	Kcp  KcpServer  `json:"kcp" yaml:"kcp"`
+	Http *HttpServer `json:"http" yaml:"http"`
+	Kcp  *KcpServer  `json:"kcp" yaml:"kcp"`
 }
 
 type HttpServer struct {
@@ -74,6 +78,82 @@ func G() *Config {
 	return config
 }
 
+// Check 用来检查 config 是否合法
+func (c *Config) Check() error {
+	assertZero := func(name string, val int) error {
+		if val == 0 {
+			return errors.New(fmt.Sprintf("config: %s 为 空或者值为 0 ", name))
+		}
+		return nil
+	}
+
+	assertNil := func(name string, val any) error {
+		e := errors.New(fmt.Sprintf("config: %s 是 nil", name))
+		if utils.CheckIsNil(val) {
+			return e
+		}
+		return nil
+	}
+
+	assertRange := func(name string, val, min, max int) error {
+		if val > max || val < min {
+			return errors.New(fmt.Sprintf("config: %s=%d 不在范围 %d-%d 内", name, val, min, max))
+		}
+		return nil
+	}
+	var err error
+	join := func(e error) {
+		if e == nil {
+			return
+		}
+		err = errors.Join(err, e)
+	}
+	// main
+	join(assertNil("config.server", c.Server))
+	join(assertNil("config.db", c.DB))
+	join(assertNil("config.log", c.Log))
+	// server
+	if c.Server != nil {
+		if c.Server.Http != nil {
+			join(assertRange("config.server.http.port", c.Server.Http.Port, 1, math.MaxUint16))
+			join(assertZero("config.server.http.addr", len(c.Server.Http.Addr)))
+		} else {
+			join(assertNil("config.server.http", c.Server.Http))
+		}
+		// todo kcp 的完整校验
+		if c.Server.Kcp != nil {
+			join(assertRange("config.server.kcp.port", c.Server.Kcp.Port, 1, math.MaxUint16))
+			join(assertZero("config.server.kcp.addr", len(c.Server.Kcp.Addr)))
+		} else {
+			join(assertNil("config.server.kcp", c.Server.Kcp))
+		}
+	}
+	// log
+	if c.Log != nil {
+		join(assertZero("config.log.format", len(c.Log.Format)))
+		join(assertZero("config.log.level", len(c.Log.Level)))
+
+		if !slices.Contains([]string{
+			"json", "console", "console_with_color",
+		}, c.Log.Format) {
+			join(errors.New(fmt.Sprintf("config: %s=%s 不支持的输出格式", "config.log.format", c.Log.Format)))
+		}
+		if _, e2 := zapcore.ParseLevel(c.Log.Level); e2 != nil {
+			join(errors.New(fmt.Sprintf("config: config.log.level=%s 不能作为 日志等级", c.Log.Level)))
+		}
+	}
+
+	// db
+	if c.DB != nil {
+		join(assertZero("config.db.driver", len(c.DB.Driver)))
+		join(assertZero("config.db.dbName", len(c.DB.Driver)))
+	}
+	// 因为这里不能直接调用dao 就没法判断是否是支持的 交给dao去判断了
+
+	// 返回错误
+	return err
+}
+
 // InitConfig 配置初始化
 func InitConfig() error {
 	path, typ, err := findAvailAbleConfigFile()
@@ -112,8 +192,8 @@ func InitConfig() error {
 		if err != nil {
 			return errors.New("config: " + err.Error())
 		}
-		// todo config检查
-		return nil
+		// 检查 config
+		return config.Check()
 	}
 }
 

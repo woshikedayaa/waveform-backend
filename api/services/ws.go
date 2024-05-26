@@ -70,6 +70,8 @@ import (
 //	}
 //}
 
+const WebsocketMaxFailCount = 24
+
 // WS 对websocket的简单封装 写 service 只用关心数据
 type WS struct {
 	logger  *zap.Logger
@@ -79,6 +81,7 @@ type WS struct {
 	id        int64
 	closeChan chan struct{}
 	closed    bool
+	failCount int
 }
 
 // HandleWebsocketForWaveform 处理来自前端的websocket 处理波形图的
@@ -90,6 +93,7 @@ func HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.Duration) {
 	}
 	go w.Serve()
 	// 这里发送波形数据
+	defer w.Close()
 	for w.WriteReadAble() {
 
 	}
@@ -111,6 +115,7 @@ func (w *WS) Close() {
 	}()
 	w.logger.Debug("websocket 被手动关闭", zap.Int64("ID", w.id))
 	w.closeChan <- struct{}{}
+	w.closed = true
 }
 
 // todo 封装写和读的方法 实现自动处理超时
@@ -123,7 +128,7 @@ func (w *WS) WriteText(data []byte) error {
 	return w.conn.WriteMessage(websocket.TextMessage, data)
 }
 
-func (w *WS) ReadText() (int, []byte, error) {
+func (w *WS) Read() (int, []byte, error) {
 	return w.conn.ReadMessage()
 }
 
@@ -158,7 +163,8 @@ func (w *WS) Serve() {
 	})
 
 	w.conn.SetCloseHandler(func(code int, text string) error {
-		w.closeChan <- struct{}{}
+		// 防止直接调用 ws.conn.close 这里把上层的 close写入
+		w.closed = true
 		message := websocket.FormatCloseMessage(code, "")
 		// 这里相较于官方方法 添加了自己定义的时间
 		if err := w.conn.WriteControl(websocket.CloseMessage, message, time.Now().Add(w.timeout)); err != nil {
@@ -174,17 +180,27 @@ func (w *WS) Serve() {
 		select {
 		// ping
 		case _ = <-ticker.C:
+			if w.closed {
+				continue
+			}
 			err := w.Ping()
 			if err != nil {
+				w.failCount++
 				w.logger.Error("ping 客户端发生错误,将重新尝试 ping ", zap.Int64("ID", w.id), zap.Error(err))
 			}
+			if w.failCount >= WebsocketMaxFailCount {
+				w.logger.Error("错误次数达到最大次数 将断开连接 ", zap.Int64("ID", w.id))
+				w.Close()
+				// 这里是还继续的循环 因为close需要走这个循环
+				continue
+			}
 			w.logger.Debug("ping", zap.Int64("ID", w.id))
+		// 关闭
 		case _ = <-w.closeChan:
 			close(w.closeChan)
 			_ = w.conn.Close()
 			ticker.Stop()
 			w.logger.Debug("websocket 连接被远端或者手动关闭", zap.Int64("ID", w.id))
-			w.closed = true
 			return
 		}
 	}
