@@ -23,11 +23,11 @@ func (w *WaveFormParam) GetFromUrl(c *gin.Context) error {
 	)
 	w.count, err = strconv.Atoi(counts)
 	if err != nil {
-		return errors.New("count not is a number or it is too bigger")
+		return errors.New("count 太大或者不是一个数字")
 	}
 	w.sample, err = strconv.Atoi(samples)
 	if err != nil {
-		return errors.New("sample not is a number or it is too bigger")
+		return errors.New("sample 太大或者不是一个数字")
 	}
 	return nil
 }
