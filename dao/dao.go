@@ -28,7 +28,7 @@ func InitDataBase() error {
 		err error
 	)
 
-	driver := parseDriver(config.G().DB.Driver)
+	driver := ParseDriver(config.G().DB.Driver)
 	if driver == UnknownDriver {
 		return &OpErr{
 			op:         "parse driver",
@@ -50,7 +50,7 @@ func InitDataBase() error {
 	return nil
 }
 
-func parseDriver(s string) DriverType {
+func ParseDriver(s string) DriverType {
 	driver := strings.ToLower(s)
 	m := map[string]DriverType{
 		"sqlite":  SqliteDriver,
@@ -65,7 +65,7 @@ func parseDriver(s string) DriverType {
 	return UnknownDriver
 }
 
-func openConnection(dt DriverType, dc config.DB) (*gorm.DB, error) {
+func openConnection(dt DriverType, dc *config.DB) (*gorm.DB, error) {
 	dsn := ""
 	switch dt {
 	case SqliteDriver:
