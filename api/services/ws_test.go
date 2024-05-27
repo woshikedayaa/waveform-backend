@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
@@ -10,7 +11,7 @@ import (
 
 func TestWS_Serve(t *testing.T) {
 	// a simple echo server
-	cw := make(chan *WS)
+	cw := make(chan *WSWrapper)
 	go runWsServer("/", "8080", cw)
 
 	for ws := range cw {
@@ -19,9 +20,13 @@ func TestWS_Serve(t *testing.T) {
 			defer ws.Close()
 			for ws.WriteReadAble() {
 				messageType, data, err := ws.Read()
-
 				if err != nil {
-					ws.logger.Error("read", zap.Error(err))
+					var ce *websocket.CloseError
+					if errors.As(err, &ce) && ce.Code == websocket.CloseNormalClosure {
+						break
+					} else {
+						ws.logger.Error("read", zap.Error(err))
+					}
 					break
 				}
 				if messageType != websocket.TextMessage {
@@ -39,7 +44,7 @@ func TestWS_Serve(t *testing.T) {
 
 }
 
-func runWsServer(path string, port string, cw chan *WS) {
+func runWsServer(path string, port string, cw chan *WSWrapper) {
 	engine := gin.New()
 	up := websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -51,7 +56,7 @@ func runWsServer(path string, port string, cw chan *WS) {
 		if err != nil {
 			panic(err)
 		}
-		cw <- &WS{
+		cw <- &WSWrapper{
 			logger:  zap.NewExample(),
 			conn:    conn,
 			timeout: 10 * time.Second,

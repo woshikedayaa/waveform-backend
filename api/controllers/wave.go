@@ -2,12 +2,9 @@ package controllers
 
 import (
 	"errors"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/woshikedayaa/waveform-backend/api/services"
-	"github.com/woshikedayaa/waveform-backend/pkg/resp"
 )
 
 type WaveFormParam struct {
@@ -30,42 +27,4 @@ func (w *WaveFormParam) GetFromUrl(c *gin.Context) error {
 		return errors.New("sample 太大或者不是一个数字")
 	}
 	return nil
-}
-
-func GetWaveFormByWebsocket() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var (
-			err error
-			wp  = &WaveFormParam{}
-		)
-		err = wp.GetFromUrl(c)
-		if err != nil {
-			c.JSON(http.StatusOK, resp.Fail(err.Error()))
-			return
-		}
-
-	}
-}
-
-func GetWaveFromByHttp() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var (
-			err    error
-			wp     = &WaveFormParam{}
-			points []services.Point
-		)
-		err = wp.GetFromUrl(c)
-		if err != nil {
-			c.JSON(http.StatusOK, resp.Fail(err.Error()))
-			return
-		}
-
-		points, err = services.WaveForm.GetLatestWave(wp.sample, wp.count)
-		if err != nil {
-			c.JSON(http.StatusOK, resp.Error(err.Error()))
-			return
-		}
-		c.JSON(http.StatusOK, resp.Success(points))
-		return
-	}
 }

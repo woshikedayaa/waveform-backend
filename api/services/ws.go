@@ -3,6 +3,7 @@ package services
 import (
 	"github.com/gorilla/websocket"
 	"github.com/woshikedayaa/waveform-backend/logf"
+	"github.com/woshikedayaa/waveform-backend/pkg/wave"
 	"go.uber.org/zap"
 	"time"
 )
@@ -72,8 +73,8 @@ import (
 
 const WebsocketMaxFailCount = 24
 
-// WS 对websocket的简单封装 写 service 只用关心数据
-type WS struct {
+// WSWrapper 对websocket的简单封装 写 service 只用关心数据
+type WSWrapper struct {
 	logger  *zap.Logger
 	conn    *websocket.Conn
 	timeout time.Duration
@@ -84,31 +85,15 @@ type WS struct {
 	failCount int
 }
 
-// HandleWebsocketForWaveform 处理来自前端的websocket 处理波形图的
-func HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.Duration) {
-	w := &WS{
-		logger:  logf.Open("service/ws"),
-		conn:    conn,
-		timeout: timeout,
-	}
-	go w.Serve()
-	// 这里发送波形数据
-	defer w.Close()
-	for w.WriteReadAble() {
-
-	}
-	//
-}
-
-func (w *WS) Closed() bool {
+func (w *WSWrapper) Closed() bool {
 	return w.closed
 }
 
-func (w *WS) WriteReadAble() bool {
+func (w *WSWrapper) WriteReadAble() bool {
 	return !w.closed
 }
 
-func (w *WS) Close() {
+func (w *WSWrapper) Close() {
 	defer func() {
 		// do nothing
 		recover()
@@ -120,7 +105,7 @@ func (w *WS) Close() {
 
 // todo 封装写和读的方法 实现自动处理超时
 
-func (w *WS) WriteText(data []byte) error {
+func (w *WSWrapper) WriteText(data []byte) error {
 	err := w.conn.SetWriteDeadline(time.Now().Add(w.timeout))
 	if err != nil {
 		return err
@@ -128,11 +113,11 @@ func (w *WS) WriteText(data []byte) error {
 	return w.conn.WriteMessage(websocket.TextMessage, data)
 }
 
-func (w *WS) Read() (int, []byte, error) {
+func (w *WSWrapper) Read() (int, []byte, error) {
 	return w.conn.ReadMessage()
 }
 
-func (w *WS) Ping() error {
+func (w *WSWrapper) Ping() error {
 	err := w.conn.SetWriteDeadline(time.Now().Add(w.timeout))
 	if err != nil {
 		return err
@@ -140,7 +125,18 @@ func (w *WS) Ping() error {
 	return w.conn.WriteMessage(websocket.PingMessage, []byte{})
 }
 
-func (w *WS) Serve() {
+func (w *WSWrapper) Error(msg string, err error) {
+	w.failCount++
+	w.logger.Error(msg, zap.Error(err), zap.Int64("ID", w.id))
+}
+
+func (w *WSWrapper) Warn(msg string, filed ...zap.Field) {
+	w.logger.Warn(msg, filed...)
+}
+
+//
+
+func (w *WSWrapper) Serve() {
 	if w.logger == nil {
 		w.logger = zap.NewNop()
 	}
@@ -186,10 +182,10 @@ func (w *WS) Serve() {
 			err := w.Ping()
 			if err != nil {
 				w.failCount++
-				w.logger.Error("ping 客户端发生错误,将重新尝试 ping ", zap.Int64("ID", w.id), zap.Error(err))
+				w.Warn("ping失败 将尝试再次ping ", zap.Error(err))
 			}
 			if w.failCount >= WebsocketMaxFailCount {
-				w.logger.Error("错误次数达到最大次数 将断开连接 ", zap.Int64("ID", w.id))
+				w.Error("错误次数达到最大次数，主动断开连接", nil)
 				w.Close()
 				// 这里是还继续的循环 因为close需要走这个循环
 				continue
@@ -204,4 +200,42 @@ func (w *WS) Serve() {
 			return
 		}
 	}
+}
+
+func handleWs(conn *websocket.Conn, timeout time.Duration) *WSWrapper {
+	w := &WSWrapper{
+		logger:  logf.Open("service/ws"),
+		conn:    conn,
+		timeout: timeout,
+	}
+	go w.Serve()
+	return w
+}
+
+type ws struct{}
+
+var WebSocket ws
+
+// HandleWebsocketForWaveform 处理来自前端的websocket 处理波形图的
+func (ws) HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.Duration) {
+	w := handleWs(conn, timeout)
+	defer w.Close()
+	ticker := time.NewTicker(time.Second)
+	for w.WriteReadAble() {
+		select {
+		case _ = <-ticker.C:
+			// 这里只是测试用 生成随机的数据
+			data := wave.GenerateRandomData(1024)
+			// todo 保存到全局变量 方便保存 （可能有）
+			//
+			err := w.WriteText(data)
+			if err != nil {
+				w.Error("通过 websocket 写入数据的时候出现错误", err)
+				continue
+			}
+		default:
+			// do nothing
+		}
+	}
+	//
 }

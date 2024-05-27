@@ -1,14 +1,14 @@
 server:
   http:
     port: 8080
-    addr: 127.0.0.1
+    addr: 0.0.0.0
     cors:
       enabled: false
       origins:
         - "*"
   kcp:
     # 硬件的网络地址
-    addr: 127.0.0.1
+    addr: 0.0.0.0
     port: 8081
     # 使用 "fast" 模式以获得最佳性能
     mode: "fast"
