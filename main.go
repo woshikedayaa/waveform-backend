@@ -21,29 +21,20 @@ func main() {
 		DoJob(job)
 		return
 	}
-
-	configFileExist := true
 	err := config.InitConfig()
 	if err != nil {
-		if os.IsNotExist(err) {
-			configFileExist = false
-		} else {
-			panic(err)
-		}
+		panic(err)
 	}
 	err = logf.LoggerInit()
 	if err != nil {
 		panic(err)
 	}
+
 	logger := logf.Open("main")
-	// 检查配置文件是否存在 现在用logger打印出来提示用户
-	if !configFileExist {
-		logger.Warn("无法找到config.yaml，将使用默认配置。请参考文档进行配置")
-	}
 	// 配置数据库
 	err = dao.InitDataBase()
 	if err != nil {
-		logger.Fatal("can not init database ", zap.Error(err))
+		logger.Fatal("无法初始化数据库", zap.Error(err))
 		return
 	}
 	// 配置路由
@@ -55,10 +46,9 @@ func main() {
 			config.G().Server.Http.Addr,
 			strconv.Itoa(config.G().Server.Http.Port),
 		}, ":")
-	// 这里就不用zap的 zap.string 了
-	logger.Warn("HTTP 服务器将会启动在 " + ipPort)
+	logger.Sugar().Info("HTTP 服务器将启动在 %s", ipPort)
 	if err = router.Run(ipPort); err != nil {
-		panic(err)
+		logger.Fatal("http服务器启动失败", zap.Error(err))
 	}
 }
 
