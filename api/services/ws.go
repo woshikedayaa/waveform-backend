@@ -82,7 +82,6 @@ type WSWrapper struct {
 	timeout time.Duration
 
 	id        int64
-	closeChan chan struct{}
 	closed    bool
 	failCount int
 	*sync.RWMutex
@@ -109,8 +108,12 @@ func (w *WSWrapper) Close() {
 		return
 	}
 	w.logger.Debug("websocket 被手动关闭", zap.Int64("ID", w.id))
-	w.closeChan <- struct{}{}
+
+	// 真实的close代码
+	_ = w.conn.Close()
 	w.closed = true
+	w.logger.Debug("websocket 连接被远端或者手动关闭", zap.Int64("ID", w.id))
+	return
 }
 
 // todo 封装写和读的方法 实现自动处理超时
@@ -185,7 +188,7 @@ func (w *WSWrapper) Serve() {
 		if w.closed {
 			return nil
 		}
-		// 防止直接调用 ws.conn.close 这里把上层的 close写入
+		// 这里通知上层这个连接已经 close 了
 		w.closed = true
 		message := websocket.FormatCloseMessage(code, "")
 		// 这里相较于官方方法 添加了自己定义的时间
@@ -235,25 +238,16 @@ func (w *WSWrapper) Serve() {
 				w.Warn("ping失败 将尝试再次ping ", zap.Error(err))
 			}
 			w.logger.Debug("ping", zap.Int64("ID", w.id))
-		// 关闭
-		case _ = <-w.closeChan:
-			w.Lock()
-			close(w.closeChan)
-			_ = w.conn.Close()
-			w.Unlock()
-			w.logger.Debug("websocket 连接被远端或者手动关闭", zap.Int64("ID", w.id))
-			return
 		}
 	}
 }
 
 func handleWs(conn *websocket.Conn, timeout time.Duration) *WSWrapper {
 	w := &WSWrapper{
-		closeChan: make(chan struct{}),
-		logger:    logf.Open("service/ws"),
-		conn:      conn,
-		timeout:   timeout,
-		RWMutex:   new(sync.RWMutex),
+		logger:  logf.Open("service/ws"),
+		conn:    conn,
+		timeout: timeout,
+		RWMutex: new(sync.RWMutex),
 	}
 	go w.Serve()
 	return w
