@@ -3,6 +3,8 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/woshikedayaa/waveform-backend/api/controllers"
+	"github.com/woshikedayaa/waveform-backend/pkg/resp"
+	"net/http"
 )
 
 // InitRouter 这个文件取代 router 包
@@ -11,10 +13,8 @@ func InitRouter() *gin.Engine {
 	engine := ginConfigure()
 
 	// test
-	engine.GET("/test", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"msg": "this is ok!",
-		})
+	engine.GET("/ping", func(c *gin.Context) {
+		c.JSON(http.StatusOK, resp.Success("pong!"))
 	})
 	// 用于和前端交互的路由组
 	viewGroup := engine.Group("/view")

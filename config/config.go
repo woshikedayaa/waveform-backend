@@ -40,6 +40,12 @@ type Servers struct {
 type HttpServer struct {
 	Addr string `json:"addr" yaml:"addr"`
 	Port int    `json:"port" yaml:"port"`
+	Cors *Cors  `json:"cors" yaml:"cors"`
+}
+
+type Cors struct {
+	Enabled bool     `json:"enabled" yaml:"enabled"`
+	Origins []string `json:"origins" yaml:"origins"`
 }
 
 // KcpServer KCP 协议配置（已包括调优配置）
@@ -78,11 +84,11 @@ func G() *Config {
 	return config
 }
 
-// Check 用来检查 config 是否合法
-func (c *Config) Check() error {
+// check 用来检查 config 是否合法
+func (c *Config) check() error {
 	assertZero := func(name string, val int) error {
 		if val == 0 {
-			return errors.New(fmt.Sprintf("config: %s 为 空或者值为 0 ", name))
+			return errors.New(fmt.Sprintf("config: %s 为 空或者值不能为 0 ", name))
 		}
 		return nil
 	}
@@ -108,10 +114,6 @@ func (c *Config) Check() error {
 		}
 		err = errors.Join(err, e)
 	}
-	// main
-	join(assertNil("config.server", c.Server))
-	join(assertNil("config.db", c.DB))
-	join(assertNil("config.log", c.Log))
 	// server
 	if c.Server != nil {
 		if c.Server.Http != nil {
@@ -139,7 +141,7 @@ func (c *Config) Check() error {
 			join(errors.New(fmt.Sprintf("config: %s=%s 不支持的输出格式", "config.log.format", c.Log.Format)))
 		}
 		if _, e2 := zapcore.ParseLevel(c.Log.Level); e2 != nil {
-			join(errors.New(fmt.Sprintf("config: config.log.level=%s 不能作为 日志等级", c.Log.Level)))
+			join(errors.New(fmt.Sprintf("config: %s=%s 不能作为 日志等级", "config.log.level", c.Log.Level)))
 		}
 	}
 
@@ -156,27 +158,15 @@ func (c *Config) Check() error {
 
 // InitConfig 配置初始化
 func InitConfig() error {
-	path, typ, err := findAvailAbleConfigFile()
+	// 先读取默认的配置文件
+	viper.SetConfigType("yaml")
+	err := viper.ReadConfig(strings.NewReader(GetExampleConfig()))
 	if err != nil {
-		if os.IsNotExist(err) {
-			// 没找到配置文件 从默认的读
-			// 返回 os.ErrNotExist 供其他函数将会使用默认配置文件
-			viper.SetConfigType("yaml")
-			err = viper.ReadConfig(strings.NewReader(configFull))
-			if err != nil {
-				return err
-			}
-			err = viper.Unmarshal(config)
-			if err != nil {
-				return err
-			}
-			// 默认配置文件不需要后面的配置文件检查了
-			return os.ErrNotExist
-		} else {
-			return err
-		}
-	} else {
-		// 这里是找到可用的配置文件了 就从配置文件读
+		return errors.New("config: 读取默认配置错误 err: " + err.Error())
+	}
+	path, typ, err := findAvailAbleConfigFile()
+	if err == nil {
+		// 这里是找到可用的配置文件了 就再配置文件读
 		// 配置 Viper
 		viper.SetConfigType(typ)
 		viper.AddConfigPath(GetDefaultConfigFileDir())
@@ -187,14 +177,14 @@ func InitConfig() error {
 		if err != nil {
 			return errors.New("config: " + err.Error())
 		}
-		// 将配置文件内容反序列化到config变量中
-		err = viper.Unmarshal(config)
-		if err != nil {
-			return errors.New("config: " + err.Error())
-		}
-		// 检查 config
-		return config.Check()
 	}
+	// 将配置内容反序列化到config变量中
+	err = viper.Unmarshal(config)
+	if err != nil {
+		return errors.New("config: " + err.Error())
+	}
+	// 检查 config
+	return config.check()
 }
 
 // findAvailAbleConfigFile 检查支持的配置文件是否存在

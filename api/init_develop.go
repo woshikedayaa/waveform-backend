@@ -10,6 +10,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/woshikedayaa/waveform-backend/api/middlewares"
 	"github.com/woshikedayaa/waveform-backend/api/swag"
+	"github.com/woshikedayaa/waveform-backend/config"
 )
 
 func ginConfigure() *gin.Engine {
@@ -18,10 +19,13 @@ func ginConfigure() *gin.Engine {
 
 	//配置中间件
 	engine.Use(
-		middlewares.Cors(),
 		gin.Recovery(),
 		middlewares.Logging(),
 	)
+	if config.G().Server.Http.Cors.Enabled {
+		engine.Use(middlewares.Cors())
+	}
+
 	// Swagger API文档路由
 	// 初始化Swagger
 	swag.SwaggerInfo.Title = "Waveform Backend API"

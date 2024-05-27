@@ -2,6 +2,10 @@ server:
   http:
     port: 8080
     addr: 127.0.0.1
+    cors:
+      enabled: false
+      origins:
+        - "*"
   kcp:
     # 硬件的网络地址
     addr: 127.0.0.1

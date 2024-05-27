@@ -15,11 +15,11 @@ func TestParseConfig(t *testing.T) {
 }
 
 func TestCheckConfig(t *testing.T) {
-	err := getExampleCorrectConfig().Check()
+	err := getExampleCorrectConfig().check()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = getExampleMistakeConfig().Check()
+	err = getExampleMistakeConfig().check()
 	if err == nil {
 		t.Fatal()
 	} else {
