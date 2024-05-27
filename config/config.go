@@ -164,6 +164,12 @@ func InitConfig() error {
 	if err != nil {
 		return errors.New("config: 读取默认配置错误 err: " + err.Error())
 	}
+	// 将配置内容反序列化到config变量中
+	err = viper.Unmarshal(config)
+	if err != nil {
+		return errors.New("config: " + err.Error())
+	}
+	// 这里读取一遍配置文件
 	path, typ, err := findAvailAbleConfigFile()
 	if err == nil {
 		// 这里是找到可用的配置文件了 就再配置文件读

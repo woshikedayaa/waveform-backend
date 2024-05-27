@@ -10,7 +10,6 @@ import (
 )
 
 func TestWS_Serve(t *testing.T) {
-	// a simple echo server
 	cw := make(chan *WSWrapper)
 	go runWsServer("/", "8080", cw)
 
@@ -19,21 +18,6 @@ func TestWS_Serve(t *testing.T) {
 		go func() {
 			defer ws.Close()
 			for ws.WriteReadAble() {
-				//_, data, err := ws.Read()
-				//if err != nil {
-				//	var ce *websocket.CloseError
-				//	if errors.As(err, &ce) && ce.Code == websocket.CloseNormalClosure {
-				//		break
-				//	} else {
-				//		ws.logger.Error("read", zap.Error(err))
-				//	}
-				//	break
-				//}
-				////if messageType != websocket.TextMessage {
-				////	continue
-				////}
-				//ws.logger.Info("read", zap.String("data", string(data)))
-				//
 				err := ws.WriteText([]byte("6666"))
 				if err != nil {
 					ws.logger.Error("write", zap.Error(err))
