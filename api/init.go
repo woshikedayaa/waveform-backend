@@ -21,9 +21,8 @@ func InitRouter() *gin.Engine {
 	// 与前端交互的WebSocket路由
 	viewGroup.GET("/ws", controllers.WebSocketController())
 
-	// 暂时用不到（暂留）
-	apiGroup := engine.Group("/api")
-	apiGroup.GET("/latest", controllers.GetWaveFromByHttp())
-
+	// 用于保存与获取历史数据的路由组
+	historyGroup := engine.Group("/save")
+	historyGroup.GET("/temp", controllers.SaveTemporary())
 	return engine
 }

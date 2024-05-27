@@ -31,6 +31,6 @@ func WebSocketController() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, resp.Error(fmt.Sprintf("无法成功将此连接升级为 websocket %s", err)))
 			return
 		}
-		go services.HandleWebsocketForWaveform(conn, 10*time.Second)
+		go services.WebSocket.HandleWebsocketForWaveform(conn, 10*time.Second)
 	}
 }

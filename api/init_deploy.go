@@ -4,7 +4,11 @@
 
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/woshikedayaa/waveform-backend/api/middlewares"
+	"github.com/woshikedayaa/waveform-backend/config"
+)
 
 func ginConfigure() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
