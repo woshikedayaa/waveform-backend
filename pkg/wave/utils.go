@@ -35,19 +35,20 @@ func GenerateRandomData(count int) []byte {
 		return res
 	}
 	var res []byte
-
+	var point int
 	for {
 		n := rand.Uint32()
 		// 这里复用一下 这里生成的是 uint32 可以分为四个 uint8
 		// 可以减少随机数生成的次数
-		for i := 0; i < 4 && len(res) < count; i++ {
+		for i := 0; i < 4 && point < count; i++ {
 			cur := uint8(n)
 			n >>= 8
 
 			res = append(res, Uint8ToAscii(cur)...)
 			res = append(res, '\n')
+			point++
 		}
-		if len(res) == count {
+		if point >= count {
 			return res
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/woshikedayaa/waveform-backend/logf"
 	"github.com/woshikedayaa/waveform-backend/pkg/wave"
 	"go.uber.org/zap"
+	"sync"
 	"time"
 )
 
@@ -83,6 +84,7 @@ type WSWrapper struct {
 	closeChan chan struct{}
 	closed    bool
 	failCount int
+	*sync.RWMutex
 }
 
 func (w *WSWrapper) Closed() bool {
@@ -110,6 +112,8 @@ func (w *WSWrapper) WriteText(data []byte) error {
 	if err != nil {
 		return err
 	}
+	w.Lock()
+	defer w.Unlock()
 	return w.conn.WriteMessage(websocket.TextMessage, data)
 }
 
@@ -122,6 +126,8 @@ func (w *WSWrapper) Ping() error {
 	if err != nil {
 		return err
 	}
+	w.Lock()
+	defer w.Unlock()
 	return w.conn.WriteMessage(websocket.PingMessage, []byte{})
 }
 
@@ -171,12 +177,23 @@ func (w *WSWrapper) Serve() {
 
 	// 每一秒 ping 一下
 	ticker := time.NewTicker(time.Second)
+	// 这个变量用来检查ping是否收到 如果长时间没受到pong 就断开连接
+	pingSent := 0
 	w.logger.Debug("开始处理websocket 连接", zap.Int64("ID", w.id))
-	for {
+	// 用来 响应 pong
+	go func() {
+		_, _, _ = w.Read()
+		pingSent = 0
+	}()
+	for w.WriteReadAble() {
 		select {
 		// ping
 		case _ = <-ticker.C:
 			if w.closed {
+				continue
+			}
+			if pingSent > WebsocketMaxFailCount {
+				w.Close()
 				continue
 			}
 			err := w.Ping()
@@ -194,7 +211,9 @@ func (w *WSWrapper) Serve() {
 		// 关闭
 		case _ = <-w.closeChan:
 			close(w.closeChan)
+			w.Lock()
 			_ = w.conn.Close()
+			w.Unlock()
 			ticker.Stop()
 			w.logger.Debug("websocket 连接被远端或者手动关闭", zap.Int64("ID", w.id))
 			return
@@ -207,6 +226,7 @@ func handleWs(conn *websocket.Conn, timeout time.Duration) *WSWrapper {
 		logger:  logf.Open("service/ws"),
 		conn:    conn,
 		timeout: timeout,
+		RWMutex: new(sync.RWMutex),
 	}
 	go w.Serve()
 	return w
