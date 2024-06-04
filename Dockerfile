@@ -18,6 +18,7 @@ EXPOSE 8081
 
 VOLUME /usr/local/share/etc/waveform/
 VOLUME /var/log/waveform/
+VOLUME /var/lib/waveform/
 
 COPY --from=builer /app/bin/wf /
 

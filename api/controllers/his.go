@@ -8,11 +8,15 @@ import (
 
 func SaveTemporary() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id := c.DefaultQuery("ts", "")
+		id := c.DefaultQuery("id", "")
 		if len(id) == 0 {
-			c.JSON(http.StatusOK, resp.Fail("必须指定一个时间戳"))
+			c.JSON(http.StatusOK, resp.Fail("必须指定一个id"))
 			return
 		}
 		// todo
 	}
+}
+
+func SaveToDatabase() gin.HandlerFunc {
+
 }

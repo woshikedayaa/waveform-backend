@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/glebarez/sqlite"
 	"github.com/woshikedayaa/waveform-backend/config"
+	"github.com/woshikedayaa/waveform-backend/dao/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"math"
@@ -32,8 +33,8 @@ func InitDataBase() error {
 	if driver == UnknownDriver {
 		return &OpErr{
 			op:         "parse driver",
-			err:        errors.New(fmt.Sprintf("unknown driver %s", config.G().DB.Driver)),
-			suggestion: "see the document",
+			err:        errors.New(fmt.Sprintf("未知的驱动类型 %s", config.G().DB.Driver)),
+			suggestion: "阅读文档",
 		}
 	}
 	db, err = openConnection(driver, config.G().DB)
@@ -44,6 +45,16 @@ func InitDataBase() error {
 		}
 		ope.err = err
 		ope.op = "connect"
+		return ope
+	}
+	// 建表
+	err = db.AutoMigrate(&models.Wave{})
+	if err != nil {
+		ope := &OpErr{}
+
+		ope.err = err
+		ope.op = "create"
+		ope.suggestion = "反馈给开发者"
 		return ope
 	}
 	// finish
@@ -74,11 +85,11 @@ func openConnection(dt DriverType, dc *config.DB) (*gorm.DB, error) {
 	case MysqlDriver:
 		// todo mysql dsn
 		return gorm.Open(mysql.Open(dsn))
-	// todo full support current database type
+	// todo full support current table type
 	default:
 		return nil, &OpErr{
-			op:         "connect",
-			suggestion: "unsupported database type",
+			op:  "connect",
+			err: errors.New("不支持的数据库类型"),
 		}
 	}
 }

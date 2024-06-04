@@ -4,7 +4,7 @@ import "strings"
 
 type OpErr struct {
 	op         string
-	database   string
+	table      string
 	err        error
 	suggestion string
 }
@@ -19,7 +19,7 @@ func (o *OpErr) Error() string {
 		es = o.err.Error()
 	}
 
-	return strings.Join([]string{"database: ", o.op, o.database, es, o.suggestion}, " ")
+	return strings.Join([]string{"table: ", o.op, o.table, es, o.suggestion}, " ")
 }
 
 func (o *OpErr) Unwrap() error {

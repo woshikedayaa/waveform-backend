@@ -17,6 +17,7 @@ DIST_DIR=./bin
 INSTALL_DIR=/usr/local/bin
 CONFIG_DIR=/usr/local/share/etc/waveform
 LOG_DIR=/var/log/waveform
+LIB_DIR=/var/lib/waveform
 
 # 这个是为了发布用的 可以构建全部的架构 可以发布到 release
 deploy: clean $(ALL_ARCH)
@@ -57,7 +58,7 @@ docker:
 
 install:
 	@echo "Create LOG_DIR=$(LOG_DIR) CONFIG_DIR=$(CONFIG_DIR)"
-	@mkdir -p $(LOG_DIR) $(CONFIG_DIR)
+	@mkdir -p $(LOG_DIR) $(CONFIG_DIR) $(LIB_DIR)
 	@cp $(SRC_DIR)/config/config_full.yaml $(CONFIG_DIR)/config.yaml
 	@echo "Build .... "
 	@CGO_ENABLED=0 GOMIPS=softfloat go build \
