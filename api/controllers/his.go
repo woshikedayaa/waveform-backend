@@ -18,5 +18,7 @@ func SaveTemporary() gin.HandlerFunc {
 }
 
 func SaveToDatabase() gin.HandlerFunc {
+	return func(c *gin.Context) {
 
+	}
 }

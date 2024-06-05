@@ -1,6 +1,8 @@
 package services
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/woshikedayaa/waveform-backend/logf"
 	"github.com/woshikedayaa/waveform-backend/pkg/resp"
@@ -74,16 +76,30 @@ import (
 //}
 
 const WebsocketMaxFailCount = 24
+const WebsocketMaxChannelBuffer = 64
+
+type WsTLV struct {
+	MessageType int
+	Length      int
+	Data        []byte
+}
 
 // WSWrapper 对websocket的简单封装 写 service 只用关心数据
 type WSWrapper struct {
+	// must order
 	logger  *zap.Logger
 	conn    *websocket.Conn
 	timeout time.Duration
 
+	// channel max=WebsocketMaxChannelBuffer
+	readChan  chan WsTLV
+	WriteChan chan WsTLV
+
+	// do not edit
 	id        int64
 	closed    bool
 	failCount int
+	// lock
 	*sync.RWMutex
 }
 
@@ -100,10 +116,6 @@ func (w *WSWrapper) WriteReadAble() bool {
 func (w *WSWrapper) Close() {
 	w.Lock()
 	defer w.Unlock()
-	defer func() {
-		// do nothing
-		recover()
-	}()
 	if w.closed {
 		return
 	}
@@ -112,30 +124,34 @@ func (w *WSWrapper) Close() {
 	// 真实的close代码
 	_ = w.conn.Close()
 	w.closed = true
-	w.logger.Debug("websocket 连接被远端或者手动关闭", zap.Int64("ID", w.id))
 	return
+}
+
+func (w *WSWrapper) ReadChan() <-chan WsTLV {
+	return w.readChan
 }
 
 // todo 封装写和读的方法 实现自动处理超时
 
 func (w *WSWrapper) WriteJson(obj any) error {
-	err := w.conn.SetWriteDeadline(time.Now().Add(w.timeout))
+	bytes, err := json.Marshal(obj)
 	if err != nil {
 		return err
 	}
-	w.Lock()
-	defer w.Unlock()
-	return w.conn.WriteJSON(obj)
+	return w.WriteText(bytes)
 }
 
 func (w *WSWrapper) WriteText(data []byte) error {
-	err := w.conn.SetWriteDeadline(time.Now().Add(w.timeout))
-	if err != nil {
-		return err
+	return w.write(websocket.TextMessage, data)
+}
+
+func (w *WSWrapper) write(typ int, data []byte) error {
+	w.WriteChan <- WsTLV{
+		MessageType: typ,
+		Length:      len(data),
+		Data:        data,
 	}
-	w.Lock()
-	defer w.Unlock()
-	return w.conn.WriteMessage(websocket.TextMessage, data)
+	return w.conn.SetWriteDeadline(time.Now().Add(w.timeout))
 }
 
 func (w *WSWrapper) Read() (int, []byte, error) {
@@ -144,15 +160,13 @@ func (w *WSWrapper) Read() (int, []byte, error) {
 
 func (w *WSWrapper) Ping() error {
 	_ = w.conn.SetReadDeadline(time.Now().Add(w.timeout))
-	_ = w.conn.SetWriteDeadline(time.Now().Add(w.timeout))
-	w.Lock()
-	defer w.Unlock()
-	return w.conn.WriteMessage(websocket.PingMessage, []byte{})
+	return w.write(websocket.PingMessage, nil)
 }
 
-func (w *WSWrapper) Error(msg string, err error) {
+func (w *WSWrapper) Error(msg string, err error, field ...zap.Field) {
 	w.failCount++
-	w.logger.Error(msg, zap.Error(err), zap.Int64("ID", w.id))
+	field = append(field, zap.Int64("ID", w.id), zap.Error(err))
+	w.logger.Error(msg, field...)
 }
 
 func (w *WSWrapper) Warn(msg string, filed ...zap.Field) {
@@ -200,9 +214,15 @@ func (w *WSWrapper) Serve() {
 
 	// read
 	go func() {
+		var (
+			err error
+			tlv = WsTLV{}
+		)
 		for w.WriteReadAble() {
 			_ = w.conn.SetReadDeadline(time.Now().Add(w.timeout))
-			_, _, err := w.Read()
+			tlv.MessageType, tlv.Data, err = w.Read()
+			tlv.Length = len(tlv.Data)
+
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					w.Error("读取消息时发生意外关闭错误", err)
@@ -210,6 +230,14 @@ func (w *WSWrapper) Serve() {
 				} else {
 					w.Warn("读取消息失败", zap.Error(err))
 				}
+			}
+			// 这里检查一下是不是过多没处理 如果没处理并且达到了 管道的上限 就丢弃
+			if len(w.WriteChan) >= WebsocketMaxChannelBuffer {
+				w.Warn(fmt.Sprintf("消息过多，未处理 max= %d", WebsocketMaxChannelBuffer))
+				continue
+			}
+			if tlv.MessageType != websocket.PingMessage && tlv.MessageType != websocket.PongMessage {
+				w.readChan <- tlv
 			}
 		}
 	}()
@@ -226,28 +254,42 @@ func (w *WSWrapper) Serve() {
 			if w.closed {
 				continue
 			}
-			err := w.Ping()
+			// 做一下健康检查
 			if w.failCount >= WebsocketMaxFailCount {
 				w.Error("错误次数达到最大次数，主动断开连接", nil)
 				w.Close()
 				// 这里是还继续的循环 因为close需要走这个循环
 				continue
 			}
+			err := w.Ping()
+
 			if err != nil {
 				w.failCount++
 				w.Warn("ping失败 将尝试再次ping ", zap.Error(err))
 			}
 			w.logger.Debug("ping", zap.Int64("ID", w.id))
+		case tlv := <-w.WriteChan:
+			err := w.conn.WriteMessage(tlv.MessageType, tlv.Data)
+			if err != nil {
+				w.Error("write 失败", err)
+			}
+			if websocket.IsUnexpectedCloseError(err) {
+				w.logger.Info("发生未知的关闭错误，关闭连接", zap.Int64("ID", w.id))
+				w.Close()
+				return
+			}
 		}
 	}
 }
 
 func handleWs(conn *websocket.Conn, timeout time.Duration) *WSWrapper {
 	w := &WSWrapper{
-		logger:  logf.Open("service/ws"),
-		conn:    conn,
-		timeout: timeout,
-		RWMutex: new(sync.RWMutex),
+		logger:    logf.Open("service/ws"),
+		conn:      conn,
+		timeout:   timeout,
+		RWMutex:   new(sync.RWMutex),
+		readChan:  make(chan WsTLV, WebsocketMaxChannelBuffer),
+		WriteChan: make(chan WsTLV, WebsocketMaxChannelBuffer),
 	}
 	go w.Serve()
 	return w
