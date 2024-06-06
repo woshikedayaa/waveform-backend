@@ -2,7 +2,6 @@ package services
 
 import (
 	"github.com/gorilla/websocket"
-	"github.com/woshikedayaa/waveform-backend/pkg/resp"
 	"github.com/woshikedayaa/waveform-backend/pkg/wave"
 	"github.com/woshikedayaa/waveform-backend/pkg/ws"
 	"time"
@@ -77,9 +76,10 @@ var WebSocket webSocket
 
 // HandleWebsocketForWaveform 处理来自前端的websocket 处理波形图的
 func (webSocket) HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.Duration) {
+
 	w := ws.HandleWs(conn, timeout)
 	defer w.Close()
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
 	for w.WriteReadAble() {
@@ -88,12 +88,13 @@ func (webSocket) HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.D
 			// todo 保存到全局变量 方便保存 （可能有）
 			//
 			// 这里只是测试用 生成随机的数据
-			points, _ := WaveForm.ConvDataToPoints(wave.GenerateRandomData(1024), 1, 1024)
+			f := wave.ParseRawData(wave.RandomData(1024), 1, 1024)
 			//
-			err := w.WriteJson(resp.Success(points))
+			err := w.WriteJson(f)
 			if err != nil {
 				w.Error("通过 websocket 写入数据的时候出现错误", err)
-				continue
+				w.Close()
+				return
 			}
 		case r := <-w.ReadChan():
 			_ = r

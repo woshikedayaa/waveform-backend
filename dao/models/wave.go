@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-var waveSaveDir string
-
 type Wave struct {
 	// ID read-only
 	ID    int       `gorm:"primary_key;auto_increment;->" json:"id"`
@@ -43,6 +41,8 @@ func (w *Wave) TableName() string {
 	return "wave"
 }
 
+// 非 windows: /var/lib/waveform/*
+// windows: ./data/*
 func (w *Wave) getSavePath() string {
 	dir := "/var/lib/waveform/"
 	if runtime.GOOS == "windows" {

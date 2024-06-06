@@ -19,7 +19,7 @@ func ScanAvailablePort() ([]string, error) {
 	return ports, nil
 }
 
-func GenerateRandomData(count int) []byte {
+func RandomData(count int) []byte {
 	if count <= 0 {
 		return nil
 	}
