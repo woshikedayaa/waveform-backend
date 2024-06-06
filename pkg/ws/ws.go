@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/woshikedayaa/waveform-backend/logf"
 	"go.uber.org/zap"
 	"sync"
 	"time"
@@ -217,9 +216,9 @@ func (w *WSWrapper) Serve() {
 	}
 }
 
-func HandleWs(conn *websocket.Conn, timeout time.Duration) *WSWrapper {
+func HandleWs(conn *websocket.Conn, timeout time.Duration, logger *zap.Logger) *WSWrapper {
 	w := &WSWrapper{
-		logger:    logf.Open("service/ws"),
+		logger:    logger,
 		conn:      conn,
 		timeout:   timeout,
 		RWMutex:   new(sync.RWMutex),

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/woshikedayaa/waveform-backend/logf"
 	"github.com/woshikedayaa/waveform-backend/pkg/wave"
 	"github.com/woshikedayaa/waveform-backend/pkg/ws"
 	"go.uber.org/zap"
@@ -17,7 +18,7 @@ var WebSocket webSocket
 // HandleWebsocketForWaveform 处理来自前端的websocket 处理波形图的
 func (webSocket) HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.Duration) {
 	var (
-		w           = ws.HandleWs(conn, timeout)
+		w           = ws.HandleWs(conn, timeout, logf.Open("service/ws"))
 		ticker      = time.NewTicker(time.Second)
 		offset      int
 		buffer      []*wave.FullData
@@ -65,10 +66,11 @@ func (webSocket) HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.D
 				}
 				switch data.Action {
 				case ActionSave:
-					idx, ok := data.Arg["idx"].(int)
+					idxf, ok := data.Arg["idx"].(float64)
 					if !ok {
 						continue
 					}
+					idx := int(idxf)
 					// 这里就删除现在的buffer了 释放内存 只保留已经决定了要临时保留的
 					if data.Typ == TypeSaveTemporary {
 						if len(buffer) <= idx-offset {
