@@ -22,8 +22,7 @@ func InitRouter() *gin.Engine {
 	viewGroup.GET("/ws", controllers.WebSocketController())
 
 	// 用于保存与获取历史数据的路由组
-	historyGroup := engine.Group("/save")
-	historyGroup.GET("/temp", controllers.SaveTemporary())
+	// historyGroup := engine.Group("/save")
 
 	return engine
 }

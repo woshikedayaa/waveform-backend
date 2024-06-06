@@ -13,7 +13,7 @@ import (
 const WebsocketMaxFailCount = 24
 const WebsocketMaxChannelBuffer = 64
 
-type WsTLV struct {
+type TLV struct {
 	MessageType int
 	Length      int
 	Data        []byte
@@ -27,8 +27,8 @@ type WSWrapper struct {
 	timeout time.Duration
 
 	// channel max=WebsocketMaxChannelBuffer
-	readChan  chan WsTLV
-	WriteChan chan WsTLV
+	readChan  chan TLV
+	WriteChan chan TLV
 
 	// do not edit
 	id        int64
@@ -62,7 +62,7 @@ func (w *WSWrapper) Close() {
 	return
 }
 
-func (w *WSWrapper) ReadChan() <-chan WsTLV {
+func (w *WSWrapper) ReadChan() <-chan TLV {
 	return w.readChan
 }
 
@@ -81,7 +81,7 @@ func (w *WSWrapper) WriteText(data []byte) error {
 }
 
 func (w *WSWrapper) write(typ int, data []byte) error {
-	w.WriteChan <- WsTLV{
+	w.WriteChan <- TLV{
 		MessageType: typ,
 		Length:      len(data),
 		Data:        data,
@@ -151,7 +151,7 @@ func (w *WSWrapper) Serve() {
 	go func() {
 		var (
 			err error
-			tlv = WsTLV{}
+			tlv = TLV{}
 		)
 		for w.WriteReadAble() {
 			_ = w.conn.SetReadDeadline(time.Now().Add(w.timeout))
@@ -223,8 +223,8 @@ func HandleWs(conn *websocket.Conn, timeout time.Duration) *WSWrapper {
 		conn:      conn,
 		timeout:   timeout,
 		RWMutex:   new(sync.RWMutex),
-		readChan:  make(chan WsTLV, WebsocketMaxChannelBuffer),
-		WriteChan: make(chan WsTLV, WebsocketMaxChannelBuffer),
+		readChan:  make(chan TLV, WebsocketMaxChannelBuffer),
+		WriteChan: make(chan TLV, WebsocketMaxChannelBuffer),
 	}
 	go w.Serve()
 	return w

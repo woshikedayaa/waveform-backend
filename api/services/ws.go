@@ -1,74 +1,14 @@
 package services
 
 import (
+	"encoding/json"
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/woshikedayaa/waveform-backend/pkg/wave"
 	"github.com/woshikedayaa/waveform-backend/pkg/ws"
+	"go.uber.org/zap"
 	"time"
 )
-
-//
-//// SendWebSocketData 处理 WebSocket 连接的业务逻辑
-//func SendWebSocketData(conn *websocket.Conn) {
-//	// 初始化 logger
-//	logger := logf.Open("WsSendData")
-//	// 定义数据发送频率（0.5s）
-//	ticker := time.NewTicker(500 * time.Millisecond)
-//	// 函数结束时停止ticker
-//	defer ticker.Stop()
-//	// 函数结束时关闭连接
-//	defer func() {
-//		if err := conn.Close(); err != nil {
-//			logger.Error("Error closing connection", zap.Error(err))
-//		}
-//	}()
-//	for {
-//		select {
-//		case <-ticker.C:
-//			mu.Lock()
-//			if len(dataBuffer) == 0 {
-//				mu.Unlock()
-//				continue
-//			}
-//			// 如果 dataBuffer 中有数据，向前端发送，并清空缓存
-//			data := make([]byte, len(dataBuffer))
-//			copy(data, dataBuffer)
-//			dataBuffer = []byte{}
-//			mu.Unlock()
-//
-//			err := conn.WriteMessage(websocket.BinaryMessage, data)
-//			if err != nil {
-//				logger.Error("Failed to write to WebSocket", zap.Error(err))
-//				return
-//			}
-//		}
-//	}
-//}
-//
-//// ReceiveWebSocketMessage 接收前端发送的消息
-//func ReceiveWebSocketMessage(conn *websocket.Conn) {
-//	logger := logf.Open("WsReceiveMessage")
-//	// 函数结束时关闭连接
-//	defer func() {
-//		if err := conn.Close(); err != nil {
-//			logger.Error("Error closing connection: %v", zap.Error(err))
-//		}
-//	}()
-//	for {
-//		_, msg, err := conn.ReadMessage()
-//		if err != nil {
-//			logger.Error("Error reading from WebSocket:", zap.Error(err))
-//			return
-//		}
-//		logger.Debug(fmt.Sprintf("Received message: %s", msg))
-//
-//		err = conn.WriteMessage(websocket.TextMessage, msg)
-//		if err != nil {
-//			logger.Error("Error writing to WebSocket:", zap.Error(err))
-//			return
-//		}
-//	}
-//}
 
 type webSocket struct{}
 
@@ -76,12 +16,15 @@ var WebSocket webSocket
 
 // HandleWebsocketForWaveform 处理来自前端的websocket 处理波形图的
 func (webSocket) HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.Duration) {
-
-	w := ws.HandleWs(conn, timeout)
+	var (
+		w           = ws.HandleWs(conn, timeout)
+		ticker      = time.NewTicker(time.Second)
+		offset      int
+		buffer      []*wave.FullData
+		readyToSave []*wave.FullData
+	)
 	defer w.Close()
-	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-
 	for w.WriteReadAble() {
 		select {
 		case _ = <-ticker.C:
@@ -90,14 +33,63 @@ func (webSocket) HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.D
 			// 这里只是测试用 生成随机的数据
 			f := wave.ParseRawData(wave.RandomData(1024), 1, 1024)
 			//
-			err := w.WriteJson(f)
+			buffer = append(buffer, f)
+
+			err := w.WriteJson(gin.H{
+				"data": f,
+				"idx":  offset + len(buffer),
+			})
 			if err != nil {
-				w.Error("通过 websocket 写入数据的时候出现错误", err)
-				w.Close()
+				w.Error("通过 websocket 写入数据的时候出现错误", err, zap.Int("data_id", offset+len(buffer)))
 				return
 			}
 		case r := <-w.ReadChan():
-			_ = r
+			if r.MessageType == websocket.TextMessage {
+				const (
+					ActionSave = iota
+				)
+				const (
+					TypeSaveTemporary = iota
+					TypeSavePersistent
+				)
+				type Data struct {
+					Action int            `json:"action"`
+					Typ    int            `json:"typ"`
+					Arg    map[string]any `json:"arg"`
+				}
+				data := &Data{}
+				err := json.Unmarshal(r.Data, data)
+				if err != nil {
+					w.Error("解析来自前端的数据出现错误", err)
+					return
+				}
+				switch data.Action {
+				case ActionSave:
+					idx, ok := data.Arg["idx"].(int)
+					if !ok {
+						continue
+					}
+					// 这里就删除现在的buffer了 释放内存 只保留已经决定了要临时保留的
+					if data.Typ == TypeSaveTemporary {
+						if len(buffer) <= idx-offset {
+							continue
+						}
+						readyToSave = append(readyToSave, buffer[idx-offset])
+						// 防止内存泄漏
+						for i := 0; i < idx-offset; i++ {
+							buffer[i] = nil
+						}
+						//
+						buffer = append([]*wave.FullData{}, buffer[idx-offset+1:]...)
+						offset = idx + 1
+					} else if data.Typ == TypeSavePersistent {
+						// 这里保存到数据库
+					} else {
+						// do nothing
+					}
+				}
+			}
+			//
 		}
 	}
 	//
