@@ -15,7 +15,7 @@ const WebsocketMaxChannelBuffer = 64
 type TLV struct {
 	MessageType int
 	Length      int
-	Data        []byte
+	Value       []byte
 }
 
 // WSWrapper 对websocket的简单封装 写 service 只用关心数据
@@ -83,7 +83,7 @@ func (w *WSWrapper) write(typ int, data []byte) error {
 	w.WriteChan <- TLV{
 		MessageType: typ,
 		Length:      len(data),
-		Data:        data,
+		Value:       data,
 	}
 	return w.conn.SetWriteDeadline(time.Now().Add(w.timeout))
 }
@@ -136,8 +136,6 @@ func (w *WSWrapper) Serve() {
 		if w.closed {
 			return nil
 		}
-		// 这里通知上层这个连接已经 close 了
-		w.closed = true
 		message := websocket.FormatCloseMessage(code, "")
 		// 这里相较于官方方法 添加了自己定义的时间
 		if err := w.conn.WriteControl(websocket.CloseMessage, message, time.Now().Add(w.timeout)); err != nil {
@@ -145,17 +143,17 @@ func (w *WSWrapper) Serve() {
 		}
 		return nil
 	})
-
 	// read
 	go func() {
+		defer w.Close()
 		var (
 			err error
 			tlv = TLV{}
 		)
 		for w.WriteReadAble() {
 			_ = w.conn.SetReadDeadline(time.Now().Add(w.timeout))
-			tlv.MessageType, tlv.Data, err = w.read()
-			tlv.Length = len(tlv.Data)
+			tlv.MessageType, tlv.Value, err = w.read()
+			tlv.Length = len(tlv.Value)
 
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -203,7 +201,7 @@ func (w *WSWrapper) Serve() {
 			}
 			w.logger.Debug("ping", zap.Int64("ID", w.id))
 		case tlv := <-w.WriteChan:
-			err := w.conn.WriteMessage(tlv.MessageType, tlv.Data)
+			err := w.conn.WriteMessage(tlv.MessageType, tlv.Value)
 			if err != nil {
 				w.Error("write 失败", err)
 			}

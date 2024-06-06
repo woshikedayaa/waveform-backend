@@ -59,7 +59,7 @@ func (webSocket) HandleWebsocketForWaveform(conn *websocket.Conn, timeout time.D
 					Arg    map[string]any `json:"arg"`
 				}
 				data := &Data{}
-				err := json.Unmarshal(r.Data, data)
+				err := json.Unmarshal(r.Value, data)
 				if err != nil {
 					w.Error("解析来自前端的数据出现错误", err)
 					return
