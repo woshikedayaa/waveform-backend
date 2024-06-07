@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"time"
 )
 
@@ -12,10 +13,9 @@ type Wave struct {
 	// ID read-only
 	ID    int       `gorm:"primary_key;auto_increment;->" json:"id"`
 	Name  string    `gorm:"size:255;not null" json:"name"`
-	CTime time.Time `gorm:"not null;autoCreateTime;column:create_time" json:"timestamp"`
-	DTime time.Time `gorm:"column:delete_time"`
-	// Data 保存的是文件的相对位置 数据库没法存这么大的数据 只有存在文件里面
-	Data string `json:"data"`
+	CTime time.Time `gorm:"not null;autoCreateTime;column:create_time" json:"createTime"`
+	DTime time.Time `gorm:"column:delete_time" json:"deleteTime"`
+	Head  string    `gorm:"head" json:"head"`
 }
 
 func (w *Wave) Read() ([]byte, error) {
@@ -49,5 +49,5 @@ func (w *Wave) getSavePath() string {
 		wd, _ := os.Getwd()
 		dir = filepath.Join(wd, "data")
 	}
-	return filepath.Join(dir, w.Data)
+	return filepath.Join(dir, strconv.Itoa(w.ID))
 }

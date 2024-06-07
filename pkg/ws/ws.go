@@ -27,7 +27,7 @@ type WSWrapper struct {
 
 	// channel max=WebsocketMaxChannelBuffer
 	readChan  chan TLV
-	WriteChan chan TLV
+	writeChan chan TLV
 
 	// do not edit
 	id        int64
@@ -80,7 +80,7 @@ func (w *WSWrapper) WriteText(data []byte) error {
 }
 
 func (w *WSWrapper) write(typ int, data []byte) error {
-	w.WriteChan <- TLV{
+	w.writeChan <- TLV{
 		MessageType: typ,
 		Length:      len(data),
 		Value:       data,
@@ -143,6 +143,9 @@ func (w *WSWrapper) Serve() {
 		}
 		return nil
 	})
+
+	w.logger.Info("开始处理新的websocket连接 ", zap.Int64("ID", w.id))
+
 	// read
 	go func() {
 		defer w.Close()
@@ -156,15 +159,17 @@ func (w *WSWrapper) Serve() {
 			tlv.Length = len(tlv.Value)
 
 			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNormalClosure) {
 					w.Error("读取消息时发生意外关闭错误", err)
+					return
+				} else if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 					return
 				} else {
 					w.Warn("读取消息失败", zap.Error(err))
 				}
 			}
 			// 这里检查一下是不是过多没处理 如果没处理并且达到了 管道的上限 就丢弃
-			if len(w.WriteChan) >= WebsocketMaxChannelBuffer {
+			if len(w.writeChan) >= WebsocketMaxChannelBuffer {
 				w.Warn(fmt.Sprintf("消息过多，未处理 max= %d", WebsocketMaxChannelBuffer))
 				continue
 			}
@@ -200,7 +205,7 @@ func (w *WSWrapper) Serve() {
 				w.Warn("ping失败 将尝试再次ping ", zap.Error(err))
 			}
 			w.logger.Debug("ping", zap.Int64("ID", w.id))
-		case tlv := <-w.WriteChan:
+		case tlv := <-w.writeChan:
 			err := w.conn.WriteMessage(tlv.MessageType, tlv.Value)
 			if err != nil {
 				w.Error("write 失败", err)
@@ -221,7 +226,7 @@ func HandleWs(conn *websocket.Conn, timeout time.Duration, logger *zap.Logger) *
 		timeout:   timeout,
 		RWMutex:   new(sync.RWMutex),
 		readChan:  make(chan TLV, WebsocketMaxChannelBuffer),
-		WriteChan: make(chan TLV, WebsocketMaxChannelBuffer),
+		writeChan: make(chan TLV, WebsocketMaxChannelBuffer),
 	}
 	go w.Serve()
 	return w

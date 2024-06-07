@@ -4,41 +4,56 @@ import (
 	"context"
 	"errors"
 	"github.com/woshikedayaa/waveform-backend/dao/models"
+	"github.com/woshikedayaa/waveform-backend/logf"
+	"github.com/woshikedayaa/waveform-backend/pkg/wave"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
 )
 
 type WaveFormDao struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger *zap.Logger
 }
 
 func NewWaveFormDao() *WaveFormDao {
-	wf := &WaveFormDao{db: Conn()}
+	wf := &WaveFormDao{db: Conn(), logger: logf.Open("dao/wave")}
 	return wf
 }
 
-func (wf *WaveFormDao) Save(ctx context.Context, name string, data []byte) error {
+func (wf *WaveFormDao) Save(ctx context.Context, name string, data *wave.FullData) error {
 	now := time.Now()
 	w := &models.Wave{}
-	if len(name) == 0 || len(data) == 0 {
+	if len(name) == 0 || len(data.Body) == 0 {
 		return &OpErr{
 			op:    "create",
 			table: w.TableName(),
 			err:   errors.New("name和data 的数据不能为空"),
 		}
 	}
-	w.Name = name
-	w.CTime = now
-	w.Data = now.Format("2006-01-02_15-04-05")
+
 	if e := wf.db.WithContext(ctx).Create(w).Error; e != nil {
 		ope := &OpErr{}
-
 		ope.err = e
 		ope.op = "create"
 		ope.table = w.TableName()
 		return ope
 	}
-	go w.Write(data)
+	j, err := data.Body.JSON()
+	if err != nil {
+		wf.logger.Sugar().Errorf("在保存 "+name+" 到数据库发送错误", zap.Error(err))
+		// 只是显式声明一下不处理错误
+		_ = wf.db.Update("delete_time", time.Now()).Error
+		ope := &OpErr{}
+		ope.err = errors.New("持久化失败 原因: data 无法转换成 json")
+		ope.op = "create"
+		ope.table = w.TableName()
+		return ope
+	}
+	w.Name = name
+	w.CTime = now
+	w.Head = data.Header.String()
+	go w.Write(j)
 
 	return nil
 }

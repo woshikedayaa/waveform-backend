@@ -1,4 +1,4 @@
-.PHONY: deploy develop init default windows run clean docker install uninstall
+.PHONY: deploy develop init default windows run clean docker install uninstall reinstall
 
 .DEFAULT_GOAL=default
 #
@@ -15,7 +15,7 @@ DEVELOP_TAGS="develop"
 SRC_DIR=.
 DIST_DIR=./bin
 INSTALL_DIR=/usr/local/bin
-CONFIG_DIR=/usr/local/share/etc/waveform
+CONFIG_DIR=/usr/local/etc/waveform
 LOG_DIR=/var/log/waveform
 LIB_DIR=/var/lib/waveform
 
@@ -57,19 +57,18 @@ docker:
 	@docker build -t $(BINARY):$(VERSION) . -f Dockerfile
 
 install:
-	@echo "Create LOG_DIR=$(LOG_DIR) CONFIG_DIR=$(CONFIG_DIR)"
-	@mkdir -p $(LOG_DIR) $(CONFIG_DIR) $(LIB_DIR)
-	@cp $(SRC_DIR)/config/config_full.yaml $(CONFIG_DIR)/config.yaml
-	@echo "Build .... "
-	@CGO_ENABLED=0 GOMIPS=softfloat go build \
+	mkdir -p $(LOG_DIR) $(CONFIG_DIR) $(LIB_DIR)
+	cp $(SRC_DIR)/config/config_full.yaml $(CONFIG_DIR)/config.yaml
+	CGO_ENABLED=0 GOMIPS=softfloat go build \
 		$(BUILD_ARGS) -tags $(DEPLOY_TAGS) -o /tmp/$(BINARY) $(SRC_DIR)/*.go
-	@echo "Install ...."
-	@install -m 0755 -o root -g root -T /tmp/$(BINARY) $(INSTALL_DIR)/$(BINARY)
-	@rm -f /tmp/$(BINARY)
+	install -m 0755 -o root -g root -T /tmp/$(BINARY) $(INSTALL_DIR)/$(BINARY)
+	rm -f /tmp/$(BINARY)
+	@echo "Install success"
 
 uninstall:
-	@echo "Remove binary file $(INSTALL_DIR)/$(BINARY)"
-	@rm -f $(INSTALL_DIR)/$(BINARY)
-	@echo "Remove config dir  $(CONFIG_DIR)"
-	@rm -rf $(CONFIG_DIR)
+	rm -f $(INSTALL_DIR)/$(BINARY)
+	rm -rf $(CONFIG_DIR)
 	@echo "Uninstall success"
+
+
+reinstall: uninstall install

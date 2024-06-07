@@ -9,6 +9,9 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"math"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -80,7 +83,7 @@ func openConnection(dt DriverType, dc *config.DB) (*gorm.DB, error) {
 	dsn := ""
 	switch dt {
 	case SqliteDriver:
-		dsn = strings.Join([]string{dc.DbName, "db"}, ".")
+		dsn = strings.Join([]string{filepath.Join(getDataBaseDir(), dc.DbName), "db"}, ".")
 		return gorm.Open(sqlite.Open(dsn))
 	case MysqlDriver:
 		// todo mysql dsn
@@ -97,4 +100,15 @@ func openConnection(dt DriverType, dc *config.DB) (*gorm.DB, error) {
 // Conn 返回当前数据库连接
 func Conn() *gorm.DB {
 	return db
+}
+
+func getDataBaseDir() string {
+	var path string
+	if runtime.GOOS != "windows" {
+		path = "/var/lib/waveform/"
+	} else {
+		dir, _ := os.Getwd()
+		path = filepath.Join(dir, "data")
+	}
+	return path
 }

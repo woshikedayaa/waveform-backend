@@ -46,7 +46,7 @@ func main() {
 			config.G().Server.Http.Addr,
 			strconv.Itoa(config.G().Server.Http.Port),
 		}, ":")
-	logger.Sugar().Info("HTTP 服务器将启动在 %s", ipPort)
+	logger.Sugar().Infof("HTTP 服务器将启动在 %s", ipPort)
 	if err = router.Run(ipPort); err != nil {
 		logger.Fatal("http服务器启动失败", zap.Error(err))
 	}

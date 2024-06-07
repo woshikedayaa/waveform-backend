@@ -78,7 +78,7 @@ func LoggerInit() error {
 
 		encoder = zapcore.NewConsoleEncoder(encoderConfig)
 	} else {
-		return errors.New(fmt.Sprintf("logf: Unsupported format %s", format))
+		return errors.New(fmt.Sprintf("logf: 不支持的格式 format %s", format))
 	}
 	//
 	// 配置 Writer
@@ -128,16 +128,18 @@ func getWriter(ss []string) (zapcore.WriteSyncer, error) {
 			writers = append(writers, zapcore.WriteSyncer(os.Stdout))
 		case "stderr":
 			writers = append(writers, zapcore.WriteSyncer(os.Stderr))
+		case "":
+			continue
 		default:
 			dir := filepath.Dir(target)
 			err := os.MkdirAll(dir, 0755) // rwxrw-rw-
 			if err != nil {
-				return nil, errors.New("logf: " + err.Error())
+				return nil, err
 			}
 
-			file, err := os.OpenFile(target, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, 0644) // rw-r--r--
+			file, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644) // rw-r--r--
 			if err != nil {
-				return nil, errors.New("logf: " + err.Error())
+				return nil, err
 			}
 			writers = append(writers, zapcore.WriteSyncer(file))
 		}

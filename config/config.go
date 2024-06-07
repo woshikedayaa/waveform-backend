@@ -158,32 +158,46 @@ func (c *Config) check() error {
 
 // InitConfig 配置初始化
 func InitConfig() error {
+	defaultVipe := viper.New()
+	userViper := viper.New()
 	// 先读取默认的配置文件
-	viper.SetConfigType("yaml")
-	err := viper.ReadConfig(strings.NewReader(GetExampleConfig()))
+	defaultVipe.SetConfigType("yaml")
+	err := defaultVipe.ReadConfig(strings.NewReader(GetExampleConfig()))
 	if err != nil {
 		return errors.New("config: 读取默认配置错误 err: " + err.Error())
-	}
-	// 将配置内容反序列化到config变量中
-	err = viper.Unmarshal(config)
-	if err != nil {
-		return errors.New("config: " + err.Error())
 	}
 	// 这里读取一遍配置文件
 	path, typ, err := findAvailAbleConfigFile()
 	if err == nil {
 		// 这里是找到可用的配置文件了 就再配置文件读
 		// 配置 Viper
-		viper.SetConfigType(typ)
-		viper.AddConfigPath(GetDefaultConfigFileDir())
-		viper.SetConfigFile(path)
+		userViper.SetConfigType(typ)
+		userViper.AddConfigPath(GetDefaultConfigFileDir())
+		userViper.SetConfigFile(path)
 
 		// 读取配置文件
-		err = viper.ReadInConfig()
+		err = userViper.ReadInConfig()
 		if err != nil {
 			return errors.New("config: " + err.Error())
 		}
 	}
+	// 合并两个
+	// 先判断用户是否设置了数组 如果设置了数组就用用户的
+	// viper的默认合并数组的策略是 合并 不是 直接修改
+	if userViper.IsSet("log.output") {
+		defaultVipe.Set("log.output", nil)
+	}
+
+	if userViper.IsSet("log.errOutput") {
+		defaultVipe.Set("log.errOutput", nil)
+	}
+	if userViper.IsSet("server.http.cors.origins") {
+		defaultVipe.Set("server.http.cors.origins", nil)
+	}
+
+	// 合并
+	_ = viper.MergeConfigMap(defaultVipe.AllSettings())
+	_ = viper.MergeConfigMap(userViper.AllSettings())
 	// 将配置内容反序列化到config变量中
 	err = viper.Unmarshal(config)
 	if err != nil {
@@ -223,7 +237,7 @@ func GetDefaultConfigFileDir() string {
 	if runtime.GOOS == "windows" {
 		configPath, _ = os.Getwd()
 	} else {
-		configPath = "/usr/local/share/etc/waveform/"
+		configPath = "/usr/local/etc/waveform/"
 	}
 	return configPath
 }

@@ -1,5 +1,10 @@
 package wave
 
+import (
+	"encoding/json"
+	"errors"
+)
+
 // FullData
 // Points 和 Head
 type FullData struct {
@@ -14,7 +19,20 @@ type Points struct {
 
 type Body []Points
 
+func (b Body) JSON() ([]byte, error) {
+	if len(b) == 0 {
+		return nil, errors.New("wave: empty body")
+	}
+
+	return json.Marshal(b)
+}
+
 type Head struct {
+}
+
+func (h Head) String() string {
+	// todo Head.String()
+	return ""
 }
 
 // ParseRawData
